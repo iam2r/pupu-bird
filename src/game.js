@@ -10,6 +10,7 @@ var Memorial = require('./memorial.js');
 var UI = require('./ui.js');
 var Sound = require('./sound.js');
 var Star = require('./star.js');
+var Leaderboard = require('./leaderboard.js');
 
 // ---- 游戏运行时状态 ----
 var state, birdY, birdVY, pipes, score, best, pipesPassed;
@@ -36,6 +37,8 @@ var currentTheme, currentAccessory, unlockedThemes;
 var unlockedAccessories = {};
 var paneling = null;
 var panelJustOpened = false;
+var rankList = [];
+var rankLoading = false;
 
 // ---- 花瓣粒子 ----
 var petals = [];
@@ -134,6 +137,8 @@ function die() {
   // 更新最佳分数
   if (score > best) best = score;
   Storage.saveData(buildSaveData());
+  // 上传排行榜（最佳成绩）
+  Leaderboard.uploadBest(best, pipesPassed);
 
   // 检查解锁新主题（基于累计积分，完全由配置驱动）
   var newUnlocks = [];
@@ -490,6 +495,7 @@ function draw(ctx) {
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
+    if (paneling === 'leaderboard') UI.drawLeaderboardPanel(ctx, t, { rankList: rankList, rankLoading: rankLoading });
     if (paneling === 'debug') UI.drawDebugPanel(ctx);
     UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
@@ -678,6 +684,13 @@ function onTouch(e) {
     }
   }
 
+  // 排行榜面板交互
+  if (paneling === 'leaderboard' && state === C.STATE.MENU) {
+    var lbAct = UI.hitTestLeaderboard(tx, ty);
+    if (lbAct && lbAct.action === 'closePanel') { paneling = null; }
+    return;
+  }
+
   // 面板内交互委托给 UI 模块
   if (paneling && state === C.STATE.MENU) {
     if (e.touches && e.touches.length === 0) {
@@ -716,6 +729,14 @@ function onTouch(e) {
       destroyUserInfoButton();
       paneling = mAct.panel;
       panelJustOpened = true;
+      if (mAct.panel === 'leaderboard') {
+        rankLoading = true;
+        rankList = [];
+        Leaderboard.fetchRankList(function(list) {
+          rankList = list;
+          rankLoading = false;
+        });
+      }
     } else if (mAct.action === 'debug') {
       points = mAct.points;
       Storage.savePoints(points);
