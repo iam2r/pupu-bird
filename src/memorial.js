@@ -31,7 +31,7 @@ function getMemorialCanvas() {
 
 // 渲染纪念卡到离屏 Canvas
 // drawAcc(ctx, cx, cy, r, t, accKey) — 由 game.js 传入 bird.drawAccessoryOnCtx
-function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, drawAcc, userAvatarUrl) {
+function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, drawAcc, userAvatarUrl, avatarImg) {
   ensureMemorialCanvas();
   if (!memorialCtx) return;
 
@@ -69,22 +69,17 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   }
 
   // 白色卡面
+  var cardTop = 70, cardBottom = 980, cardH = cardBottom - cardTop;
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  C.roundRect(ctx, 60, 100, cw - 120, ch - 200, 40);
+  C.roundRect(ctx, 60, cardTop, cw - 120, cardH, 40);
   ctx.fill();
   ctx.strokeStyle = 'rgba(200,180,190,0.35)';
   ctx.lineWidth = 2;
-  C.roundRect(ctx, 60, 100, cw - 120, ch - 200, 40);
+  C.roundRect(ctx, 60, cardTop, cw - 120, cardH, 40);
   ctx.stroke();
 
-  // 顶部装饰线
-  ctx.fillStyle = t.accent;
-  ctx.globalAlpha = 0.5;
-  C.roundRect(ctx, 140, 160, cw - 280, 3, 1.5);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // 微信头像
+  // 微信头像（卡片内部顶部，留足间距）
+  var avatarCY = cardTop + 70, avatarR = 36;
   if (userAvatarUrl) {
     if (!avatarImage || avatarImage._src !== userAvatarUrl) {
       avatarImage = wx.createImage();
@@ -94,28 +89,29 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
     if (avatarImage.width > 0) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(cw / 2, 70, 30, 0, Math.PI * 2);
+      ctx.arc(cw / 2, avatarCY, avatarR, 0, Math.PI * 2);
       ctx.clip();
-      ctx.drawImage(avatarImage, cw / 2 - 30, 40, 60, 60);
+      ctx.drawImage(avatarImage, cw / 2 - avatarR, avatarCY - avatarR, avatarR * 2, avatarR * 2);
       ctx.restore();
     }
     // 边框
     ctx.strokeStyle = 'rgba(255,255,255,0.6)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(cw / 2, 70, 30, 0, Math.PI * 2);
+    ctx.arc(cw / 2, avatarCY, avatarR, 0, Math.PI * 2);
     ctx.stroke();
   }
 
   // 标题
+  var titleY = avatarCY + 70;
   ctx.fillStyle = t.textPri;
   ctx.font = 'bold 36px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('飞行纪念', cw / 2, 210 + 36 * 0.35);
+  ctx.fillText('飞行纪念', cw / 2, titleY + 36 * 0.35);
 
   // 小鸟插图（大号）
-  var birdCX = cw / 2, birdCY = 380, bigR = 70;
+  var birdCX = cw / 2, birdCY = titleY + 150, bigR = 65;
   ctx.save(); ctx.translate(birdCX, birdCY);
 
   // 身体
@@ -124,11 +120,29 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   // 腮红
   ctx.fillStyle = t.birdBlush;
   ctx.beginPath(); ctx.arc(-bigR * 0.2, bigR * 0.35, bigR * 0.22, 0, Math.PI * 2); ctx.fill();
-  // 眼睛
+  // 眼白
+  var eyeX = bigR * 0.4, eyeY = -bigR * 0.3, eyeR = bigR * 0.25;
   ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(bigR * 0.4, -bigR * 0.3, bigR * 0.25, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+  // 头像纹理 — 眼睛阴影轮廓
+  if (avatarImg && avatarImg.width > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = 0.25;
+    ctx.globalCompositeOperation = 'multiply';
+    var texScale = (eyeR * 2) / Math.min(avatarImg.width, avatarImg.height);
+    var dw = avatarImg.width * texScale;
+    var dh = avatarImg.height * texScale;
+    ctx.drawImage(avatarImg, eyeX - dw / 2, eyeY - dh / 2, dw, dh);
+    ctx.restore();
+  }
+  // 瞳孔（半透明，透出底下头像纹理）
+  ctx.globalAlpha = 0.55;
   ctx.fillStyle = '#3A2A3A';
   ctx.beginPath(); ctx.arc(bigR * 0.5, -bigR * 0.3, bigR * 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
   // 鸟喙
   ctx.fillStyle = t.birdBeak;
   ctx.beginPath(); ctx.moveTo(bigR * 0.9, -4); ctx.lineTo(bigR * 1.8, 2); ctx.lineTo(bigR * 0.9, 8); ctx.fill();
@@ -137,36 +151,38 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   ctx.beginPath(); ctx.ellipse(-bigR * 0.2, bigR * 0.1, bigR * 0.8, bigR * 0.35, -0.3, 0, Math.PI * 2); ctx.fill();
   // 配饰（通过回调绘制）
   if (drawAcc) drawAcc(ctx, 0, 0, bigR, t, currentAccessory);
+
   ctx.restore();
 
   // 分数
+  var scoreY = birdCY + 150;
   ctx.fillStyle = t.textPri;
   ctx.font = 'bold 72px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(score.toString(), cw / 2, 500 + 72 * 0.35);
+  ctx.fillText(score.toString(), cw / 2, scoreY + 72 * 0.35);
 
   // 管道数
   ctx.fillStyle = t.textSec;
   ctx.font = 'bold 18px sans-serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(pipesPassed + ' 根管道', cw / 2, 540 + 18 * 0.35);
+  ctx.fillText(pipesPassed + ' 根管道', cw / 2, scoreY + 50 + 18 * 0.35);
 
   // 效率
   var efficiency = pipesPassed > 0 ? (score / pipesPassed).toFixed(1) : '0';
   ctx.font = '14px sans-serif';
-  ctx.fillText('均分 ' + efficiency + '/管', cw / 2, 565 + 14 * 0.35);
+  ctx.fillText('均分 ' + efficiency + '/管', cw / 2, scoreY + 72 + 14 * 0.35);
 
   // 分隔
   ctx.fillStyle = t.accent;
   ctx.globalAlpha = 0.3;
-  C.roundRect(ctx, 200, 600, cw - 400, 1, 0.5);
+  C.roundRect(ctx, 200, scoreY + 105, cw - 400, 1, 0.5);
   ctx.fill();
   ctx.globalAlpha = 1;
 
   // 寄语（支持换行）
   var lines = msg.split('\n');
-  var msgY = 660;
+  var msgY = scoreY + 160;
   ctx.fillStyle = t.textPri;
   ctx.font = 'bold 22px sans-serif';
   ctx.textAlign = 'center';
@@ -176,12 +192,12 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   }
 
   // 底部装饰
-  var decoY = 780;
+  var decoY = cardBottom - 180;
   ctx.fillStyle = t.accent;
   ctx.globalAlpha = 0.4;
   for (var di = 0; di < 5; di++) {
     ctx.beginPath();
-    ctx.arc(cw / 2 + (di - 2) * 80, decoY, 12, 0, Math.PI * 2);
+    ctx.arc(cw / 2 + (di - 2) * 80, decoY, 10, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -191,8 +207,8 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   ctx.font = '16px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(t.name + ' · 治愈飞行日记', cw / 2, 870 + 16 * 0.35);
-  ctx.fillText('噗噗鸟 · ' + C.getTodayStr(), cw / 2, 900 + 16 * 0.35);
+  ctx.fillText(t.name + ' · 治愈飞行日记', cw / 2, cardBottom - 90 + 16 * 0.35);
+  ctx.fillText('噗噗鸟 · ' + C.getTodayStr(), cw / 2, cardBottom - 55 + 16 * 0.35);
 
   ctx.textAlign = 'left';
 }
@@ -233,32 +249,51 @@ function saveToAlbum(canvas) {
   function onTempFile(res) {
     var fp = res.tempFilePath;
     _shareImagePath = fp;
-    // Step 2: 隐私授权
-    var tryAuth = function() {
-      wx.authorize({
-        scope: 'scope.writePhotosAlbum',
-        success: function() { doSave(fp); },
-        fail: function() {
-          wx.openSetting({
-            success: function(sr) {
-              if (sr.authSetting['scope.writePhotosAlbum']) doSave(fp);
-              else wx.showToast({ title: '请在设置中开启相册权限', icon: 'none' });
-            }
-          });
-        }
+
+    function trySave() {
+      wx.getSetting({
+        success: function(s) {
+          if (s.authSetting['scope.writePhotosAlbum']) {
+            doSave(fp);
+          } else {
+            wx.authorize({
+              scope: 'scope.writePhotosAlbum',
+              success: function() { doSave(fp); },
+              fail: function() {
+                wx.showToast({ title: '请到系统设置允许微信访问相册', icon: 'none', duration: 3000 });
+              }
+            });
+          }
+        },
+        fail: function() { doSave(fp); }
       });
-    };
-    if (wx.requirePrivacyAuthorize) {
-      wx.requirePrivacyAuthorize({ success: tryAuth, fail: tryAuth });
+    }
+
+    // 先确保隐私协议已同意
+    if (wx.getPrivacySetting) {
+      wx.getPrivacySetting({
+        success: function(ps) {
+          if (ps.needAuthorization) {
+            if (wx.requirePrivacyAuthorize) {
+              wx.requirePrivacyAuthorize({ success: trySave, fail: trySave });
+            } else {
+              trySave();
+            }
+          } else {
+            trySave();
+          }
+        },
+        fail: function() { trySave(); }
+      });
     } else {
-      tryAuth();
+      trySave();
     }
   }
   function doSave(fp) {
     wx.saveImageToPhotosAlbum({
       filePath: fp,
       success: function() { wx.showToast({ title: '已保存到相册', icon: 'success' }); },
-      fail: function(e) { wx.showToast({ title: '保存失败', icon: 'none' }); }
+      fail: function() { wx.showToast({ title: '保存失败，请重试', icon: 'none' }); }
     });
   }
 }

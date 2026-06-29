@@ -9,5 +9,8 @@
     "scope.writePhotosAlbum": {
       "desc": "用于保存噗噗鸟纪念卡到相册"
     }
-  }
+  },
+  "requiredPrivateInfos": [
+    "writePhotosAlbum"
+  ]
 }

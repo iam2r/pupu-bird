@@ -185,29 +185,51 @@ function drawAccessoryOnCtx(ctx, cx, cy, r, t, accKey) {
 }
 
 // ==================== 唯一鸟身绘制（比例统一，通过 r 控制大小） ====================
-function drawBirdBody(ctx, r, t, dead) {
+function drawBirdBody(ctx, r, t, dead, avatarImg) {
   // 身体
   ctx.fillStyle = dead ? t.birdWing : t.bird;
   ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+
   // 腮红
   ctx.fillStyle = dead ? 'rgba(255,150,150,0.4)' : t.birdBlush;
   ctx.beginPath(); ctx.arc(-r * 0.15, r * 0.3, r * 0.22, 0, Math.PI * 2); ctx.fill();
   // 翅膀
   ctx.fillStyle = dead ? t.pipeDark : t.birdWing;
   ctx.beginPath(); ctx.ellipse(-r * 0.2, r * 0.1, r * 0.8, r * 0.35, -0.3, 0, Math.PI * 2); ctx.fill();
+
   // 眼白
+  var eyeX = r * 0.3, eyeY = -r * 0.25, eyeR = r * 0.3;
   ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(r * 0.3, -r * 0.25, r * 0.3, 0, Math.PI * 2); ctx.fill();
-  // 瞳孔
+  ctx.beginPath(); ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2); ctx.fill();
+
+  // 头像纹理 — 眼睛阴影轮廓
+  if (avatarImg && avatarImg.width > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(eyeX, eyeY, eyeR, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha = 0.25;
+    ctx.globalCompositeOperation = 'multiply';
+    var texScale = (eyeR * 2) / Math.min(avatarImg.width, avatarImg.height);
+    var dw = avatarImg.width * texScale;
+    var dh = avatarImg.height * texScale;
+    ctx.drawImage(avatarImg, eyeX - dw / 2, eyeY - dh / 2, dw, dh);
+    ctx.restore();
+  }
+
+  // 瞳孔（半透明，透出底下头像纹理）
+  ctx.globalAlpha = 0.55;
   ctx.fillStyle = '#3A2A3A';
   ctx.beginPath(); ctx.arc(r * 0.4, -r * 0.25, r * 0.14, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
   // 鸟喙
   ctx.fillStyle = t.birdBeak;
   ctx.beginPath(); ctx.moveTo(r * 0.7, -r * 0.25); ctx.lineTo(r * 1.7, r * 0.15); ctx.lineTo(r * 0.7, r * 0.5); ctx.fill();
+
 }
 
 // ==================== 游戏小鸟 ====================
-function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio) {
+function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarImg) {
   chargeRatio = chargeRatio || 0;
   var r = C.BIRD_SIZE / 2;
   var shakeX = 0, shakeY = 0;
@@ -268,8 +290,8 @@ function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, ch
     }
     ctx.globalAlpha = 1;
   }
-  drawBirdBody(ctx, r, t, state === C.STATE.DEAD);
-  
+  drawBirdBody(ctx, r, t, state === C.STATE.DEAD, avatarImg);
+
   // 翅膀抖动（白色残影小翅膀）
   if (chargeRatio > 0.01) {
     var beatRate2 = 15 + chargeRatio * 55;
@@ -305,18 +327,23 @@ function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, ch
 }
 
 // ==================== Logo大鸟（菜单/纪念卡） ====================
-function drawLogoBird(ctx, cx, cy, bigR, t, currentAccessory, bobAmount) {
+function drawBirdCore(ctx, r, t, dead, currentAccessory, avatarImg) {
+  drawBirdBody(ctx, r, t, dead, avatarImg);
+  drawAccessoryOnCtx(ctx, 0, 0, r, t, currentAccessory);
+}
+
+function drawLogoBird(ctx, cx, cy, bigR, t, currentAccessory, bobAmount, avatarImg) {
   ctx.save();
   ctx.translate(cx, cy);
   if (bobAmount) ctx.translate(0, bobAmount);
-  drawBirdBody(ctx, bigR, t, false);
-  drawAccessoryOnCtx(ctx, 0, 0, bigR, t, currentAccessory);
+  drawBirdCore(ctx, bigR, t, false, currentAccessory, avatarImg);
   ctx.restore();
 }
 
 module.exports = {
   drawAccessoryOnCtx: drawAccessoryOnCtx,
   drawBirdBody: drawBirdBody,
+  drawBirdCore: drawBirdCore,
   drawBird: drawBird,
   drawLogoBird: drawLogoBird
 };

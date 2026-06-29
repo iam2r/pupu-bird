@@ -34,7 +34,7 @@ var THEMES = {
     acc:      { hat: ['#C8B8E8','#A898C8'], bow: ['#C090D0','#A080B8'], glasses: ['#3A2C4A','#555'],
                crown: ['#C8B8E8','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F0','#D0C0E8'],
                headphones: ['#555555','#C8B8E8'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   15
+    unlock:   50
   },
   ocean: {
     name: '海洋蓝',
@@ -49,7 +49,7 @@ var THEMES = {
     acc:      { hat: ['#88C8D8','#68A8B8'], bow: ['#70B0C8','#5898B0'], glasses: ['#2C3A4A','#555'],
                crown: ['#88C8D8','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#C8E0F0','#B0D0E8'],
                headphones: ['#555555','#88C8D8'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   25
+    unlock:   80
   },
   forest: {
     name: '森林绿',
@@ -64,7 +64,7 @@ var THEMES = {
     acc:      { hat: ['#78B868','#58A048'], bow: ['#60A850','#489040'], glasses: ['#2C4A28','#555'],
                crown: ['#78B868','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#B8E0B0','#A0D098'],
                headphones: ['#555555','#78B868'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   30
+    unlock:   100
   },
   sunset: {
     name: '日落橙',
@@ -79,7 +79,7 @@ var THEMES = {
     acc:      { hat: ['#F0A878','#E09060'], bow: ['#E89868','#D08050'], glasses: ['#4A3020','#555'],
                crown: ['#F0A878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8D0C0','#F0C0B0'],
                headphones: ['#555555','#F0A878'], star: ['#FFD700','#FFA040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   40
+    unlock:   130
   },
   lavender: {
     name: '薰衣草紫',
@@ -94,7 +94,7 @@ var THEMES = {
     acc:      { hat: ['#C4A8E0','#A888C8'], bow: ['#B890D8','#A078C0'], glasses: ['#3A2848','#555'],
                crown: ['#C4A8E0','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F4','#D0C0E8'],
                headphones: ['#555555','#C4A8E0'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   50
+    unlock:   160
   },
   mint: {
     name: '薄荷绿',
@@ -109,7 +109,7 @@ var THEMES = {
     acc:      { hat: ['#68C8A0','#48B088'], bow: ['#50B890','#389878'], glasses: ['#284838','#555'],
                crown: ['#68C8A0','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#A8E0C8','#90D8B0'],
                headphones: ['#555555','#68C8A0'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   60
+    unlock:   200
   },
   coral: {
     name: '珊瑚色',
@@ -124,7 +124,7 @@ var THEMES = {
     acc:      { hat: ['#F08878','#E07058'], bow: ['#E87868','#D06050'], glasses: ['#482820','#555'],
                crown: ['#F08878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8C0B0','#F0B0A0'],
                headphones: ['#555555','#F08878'], star: ['#FFD700','#FFA040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   70
+    unlock:   230
   },
   midnight: {
     name: '午夜蓝',
@@ -139,7 +139,7 @@ var THEMES = {
     acc:      { hat: ['#4A6FA5','#385888'], bow: ['#5B8BD4','#4A7AB8'], glasses: ['#D0D8E8','#888'],
                crown: ['#5B8BD4','#FFD700'], flower: ['#E0C8F0','#D0B8E8'], ribbon: ['#6A8FC0','#5B7DB0'],
                headphones: ['#A0B0C8','#5B8BD4'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   80
+    unlock:   260
   },
   rose: {
     name: '玫瑰金',
@@ -154,22 +154,22 @@ var THEMES = {
     acc:      { hat: ['#E8A898','#D08878'], bow: ['#D89880','#C08068'], glasses: ['#482820','#555'],
                crown: ['#E8A898','#FFD700'], flower: ['#F0A898','#F0B8A8'], ribbon: ['#F0C8B8','#E0B8A8'],
                headphones: ['#555555','#E8A898'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   100
+    unlock:   300
   }
 };
 
 // ==================== 配饰系统 ====================
 var ACCESSORIES = {
   none:       { name: '素颜', cost: 0 },
-  hat:        { name: '小帽子', color1: '#FFB3B3', color2: '#F09898', cost: 5 },
-  bow:        { name: '蝴蝶结', color1: '#FF88A8', color2: '#FF6088', cost: 5 },
-  glasses:    { name: '小墨镜', color1: '#3A2A3A', color2: '#555555', cost: 5 },
-  crown:      { name: '皇冠', color1: '#FFB3B3', color2: '#FFD700', cost: 20 },
-  flower:     { name: '小花', color1: '#FF88A8', color2: '#FFC0CB', cost: 10 },
-  ribbon:     { name: '发带', color1: '#FFD4E0', color2: '#FFB3C8', cost: 10 },
-  headphones: { name: '耳机', color1: '#555555', color2: '#FFB3B3', cost: 15 },
-  star:       { name: '星星头饰', color1: '#FFD700', color2: '#FFA500', cost: 20 },
-  halo:       { name: '天使光环', color1: '#FFEEDD', color2: '#FFD700', cost: 25 }
+  hat:        { name: '小帽子', color1: '#FFB3B3', color2: '#F09898', cost: 15 },
+  bow:        { name: '蝴蝶结', color1: '#FF88A8', color2: '#FF6088', cost: 15 },
+  glasses:    { name: '小墨镜', color1: '#3A2A3A', color2: '#555555', cost: 15 },
+  crown:      { name: '皇冠', color1: '#FFB3B3', color2: '#FFD700', cost: 60 },
+  flower:     { name: '小花', color1: '#FF88A8', color2: '#FFC0CB', cost: 30 },
+  ribbon:     { name: '发带', color1: '#FFD4E0', color2: '#FFB3C8', cost: 30 },
+  headphones: { name: '耳机', color1: '#555555', color2: '#FFB3B3', cost: 50 },
+  star:       { name: '星星头饰', color1: '#FFD700', color2: '#FFA500', cost: 60 },
+  halo:       { name: '天使光环', color1: '#FFEEDD', color2: '#FFD700', cost: 80 }
 };
 var ACC_KEYS = ['none', 'hat', 'bow', 'glasses', 'ribbon', 'flower', 'headphones', 'crown', 'star', 'halo'];
 

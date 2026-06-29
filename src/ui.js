@@ -14,6 +14,33 @@ var _panelState = {
   didScroll: false
 };
 
+// 纪念卡画面头像缓存
+var _memAvatarImg = null;
+
+// 头像占位符绘制
+function _drawAvatarPlaceholder(ctx, cx, cy, r, t) {
+  ctx.save();
+  ctx.strokeStyle = t.accent;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // 小人图标
+  ctx.globalAlpha = 0.4;
+  ctx.fillStyle = t.textSec;
+  ctx.beginPath();
+  ctx.arc(cx, cy - 3, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 6, 7, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
 // ==================== 返回按钮 ====================
 function drawBackButton(ctx, theme) {
   var bx = C.backBtn.x, by = C.backBtn.y, bw = C.backBtn.w, bh = C.backBtn.h;
@@ -85,6 +112,9 @@ function drawStartScreen(ctx, t, stateData) {
   var points = stateData.points;
   var unlockedThemes = stateData.unlockedThemes;
   var currentTheme = stateData.currentTheme;
+  var avatarEnabled = stateData.avatarEnabled;
+  var avatarImg = stateData.avatarImg;
+  var userAvatarUrl = stateData.userAvatarUrl;
 
   // ---- 标题'噗噗鸟' ----
   var titleY = C.GAME_TOP + 40;
@@ -115,12 +145,12 @@ function drawStartScreen(ctx, t, stateData) {
   var logoY = titleY + 200;
   var bigR = C.BIRD_SIZE * 3;
   var bob = Math.sin(Date.now() * 0.004) * 4;
-  Bird.drawLogoBird(ctx, C.W / 2, logoY, bigR, t, currentAccessory, bob);
+  Bird.drawLogoBird(ctx, C.W / 2, logoY, bigR, t, currentAccessory, bob, avatarEnabled ? avatarImg : null);
 
   var btnRowY = logoY + 200;
   var circleR = 15;
   var spacing = 12;
-  var totalW = circleR * 2 + spacing + circleR * 2;
+  var totalW = circleR * 2 * 3 + spacing * 2;
   var startX = (C.W - totalW) / 2;
   var pinkFill = 'rgba(255,179,179,0.22)';
   var pinkBorder = 'rgba(255,159,143,0.55)';
@@ -149,20 +179,47 @@ function drawStartScreen(ctx, t, stateData) {
     ctx.strokeRect(btn1CX - lw / 2, ly, lw, lh);
   }
 
-  // 2. 配饰按钮 — 粉色底圆 + 微型小鸟(半径10px)戴配饰
+  // 2. 头像按钮 — 微信头像 / 人物图标（居中，最显眼）
   var btn2CX = startX + circleR * 3 + spacing;
-  ctx.fillStyle = pinkFill;
+  ctx.fillStyle = avatarEnabled ? 'rgba(255,200,180,0.35)' : pinkFill;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = avatarEnabled ? t.accent : pinkBorder;
+  ctx.lineWidth = avatarEnabled ? 2 : 1;
+  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  if (avatarEnabled && avatarImg && avatarImg.width > 0) {
+    // 显示头像缩略图
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(btn2CX, btnRowY, circleR - 2, 0, Math.PI * 2);
+    ctx.clip();
+    var thumbScale = ((circleR - 2) * 2) / Math.min(avatarImg.width, avatarImg.height);
+    ctx.drawImage(avatarImg, btn2CX - avatarImg.width * thumbScale / 2, btnRowY - avatarImg.height * thumbScale / 2, avatarImg.width * thumbScale, avatarImg.height * thumbScale);
+    ctx.restore();
+  } else {
+    // 人物剪影图标
+    var iconX = btn2CX, iconY = btnRowY;
+    ctx.fillStyle = '#CCBBBB';
+    ctx.beginPath();
+    ctx.arc(iconX, iconY - 4, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(iconX, iconY + 7, 8, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // 3. 配饰按钮 — 粉色底圆 + 微型小鸟(半径10px)戴配饰
+  var btn3CX = startX + circleR * 5 + spacing * 2;
+  ctx.fillStyle = pinkFill;
+  ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = pinkBorder;
   ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  var mr = 10, bx = btn2CX, by = btnRowY;
+  ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  var mr = 10, bx = btn3CX, by = btnRowY;
   ctx.save();
   ctx.translate(bx, by);
   Bird.drawBirdBody(ctx, mr, t, false);
   Bird.drawAccessoryOnCtx(ctx, 0, 0, mr, t, currentAccessory);
   ctx.restore();
-
 
   // ---- Start 按钮（跟随主题色，带阴影+描边） ----
   var startBtnW = 140, startBtnH = 40;
@@ -390,6 +447,10 @@ function drawAccessoryPanel(ctx, t, stateData) {
         ctx.fillStyle = t.accent;
         ctx.font = 'bold 10px sans-serif';
         ctx.fillText('✓ 使用中', stX, rowY + rowH / 2 + 10 * 0.35);
+      } else {
+        ctx.fillStyle = '#AAAAAA';
+        ctx.font = '10px sans-serif';
+        ctx.fillText('已解锁', stX, rowY + rowH / 2 + 10 * 0.35);
       }
     } else {
       var accCost = acc.cost || 0;
@@ -541,6 +602,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   var currentAccessory = stateData.currentAccessory;
   var memorialMsg = stateData.memorialMsg;
   var petals = stateData.petals;
+  var userAvatarUrl = stateData.userAvatarUrl;
 
   // 背景
   ctx.fillStyle = t.bgCard;
@@ -567,12 +629,40 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.stroke();
   ctx.globalAlpha = 1;
 
+  // 头像 / 占位符
+  var avatarCY = cardY + 22, avatarR = 16;
+  if (userAvatarUrl && _memAvatarImg && _memAvatarImg._src === userAvatarUrl && _memAvatarImg.width > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(C.W / 2, avatarCY, avatarR, 0, Math.PI * 2);
+    ctx.clip();
+    var scale = (avatarR * 2) / Math.min(_memAvatarImg.width, _memAvatarImg.height);
+    ctx.drawImage(_memAvatarImg, C.W / 2 - _memAvatarImg.width * scale / 2, avatarCY - _memAvatarImg.height * scale / 2, _memAvatarImg.width * scale, _memAvatarImg.height * scale);
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(C.W / 2, avatarCY, avatarR, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (userAvatarUrl && (!_memAvatarImg || _memAvatarImg._src !== userAvatarUrl)) {
+    // 异步加载头像
+    _memAvatarImg = wx.createImage();
+    _memAvatarImg._src = userAvatarUrl;
+    _memAvatarImg.src = userAvatarUrl;
+    // 加载期间画虚线圆
+    _drawAvatarPlaceholder(ctx, C.W / 2, avatarCY, avatarR, t);
+  } else {
+    _drawAvatarPlaceholder(ctx, C.W / 2, avatarCY, avatarR, t);
+  }
+
   // 标题
-  C.drawText(ctx, '飞行纪念', C.W / 2, cardY + 36, 18, t.textPri, true);
+  C.drawText(ctx, '飞行纪念', C.W / 2, cardY + 58, 18, t.textPri, true);
 
   // 小鸟
   var birdCY = cardY + cardH * 0.38, bigR = C.BIRD_SIZE * 2.2;
-  Bird.drawLogoBird(ctx, C.W / 2, birdCY, bigR, t, currentAccessory, 0);
+  var avatarEnabled = stateData.avatarEnabled;
+  var avatarImg = stateData.avatarImg;
+  Bird.drawLogoBird(ctx, C.W / 2, birdCY, bigR, t, currentAccessory, 0, avatarEnabled ? avatarImg : null);
 
   // 分数 + 管道双数据
   var scoreAreaY = cardY + cardH * 0.62;
@@ -714,7 +804,7 @@ function hitTestMenu(tx, ty, stateData) {
   var btnRowY = logoY + 200;
   var circleR = 15;
   var spacing = 12;
-  var totalW = circleR * 2 + spacing + circleR * 2;
+  var totalW = circleR * 2 * 3 + spacing * 2;
   var startX = (C.W - totalW) / 2;
 
   // 1. 主题按钮 → 打开主题面板
@@ -723,13 +813,19 @@ function hitTestMenu(tx, ty, stateData) {
     return { action: 'openPanel', panel: 'theme' };
   }
 
-  // 2. 配饰按钮 → 打开配饰面板
+  // 2. 头像按钮 → 授权/切换头像纹理（居中）
   var btn2CX = startX + circleR * 3 + spacing;
   if (Math.sqrt((tx-btn2CX)*(tx-btn2CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
+    return { action: 'toggleAvatar' };
+  }
+
+  // 3. 配饰按钮 → 打开配饰面板
+  var btn3CX = startX + circleR * 5 + spacing * 2;
+  if (Math.sqrt((tx-btn3CX)*(tx-btn3CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
     return { action: 'openPanel', panel: 'accessory' };
   }
 
-  // 3. Start 按钮（btnRowY + 50，140x40 矩形检测）
+  // 4. Start 按钮（btnRowY + 50，140x40 矩形检测）
   var startBtnW = 140, startBtnH = 40;
   var startBtnX = (C.W - startBtnW) / 2;
   var startBtnCY = btnRowY + 50;
@@ -771,11 +867,20 @@ function hitTestGameOver(tx, ty, stateData) {
 }
 
 // 检查纪念卡画面点击
-function hitTestMemorial(tx, ty) {
+function hitTestMemorial(tx, ty, userAvatarUrl) {
   var cardW = C.W * 0.82;
   var cardH = C.H * 0.55;
   var cardX = (C.W - cardW) / 2;
   var cardY = C.GAME_TOP + C.GAME_H * 0.05;
+
+  // 头像占位区域（无头像时点击授权）
+  var avatarCY = cardY + 22, avatarR = 20;
+  if (!userAvatarUrl) {
+    if (Math.sqrt((tx - C.W / 2) * (tx - C.W / 2) + (ty - avatarCY) * (ty - avatarCY)) < avatarR) {
+      return { action: 'authAvatar' };
+    }
+  }
+
   var btnAreaY = cardY + cardH + 10;
   var btnW = C.W * 0.34, btnH = 40;
   var btnSpacing = C.W * 0.04;

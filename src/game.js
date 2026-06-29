@@ -15,6 +15,7 @@ var Star = require('./star.js');
 var state, birdY, birdVY, pipes, score, best, pipesPassed;
 var medalLevel, shakeTimer;
 var onExit;
+var isDailyChallenge;
 
 // ---- 蓄力跳 ----
 var chargeStartTime = 0, isCharging = false, chargeRatio = 0;
@@ -46,6 +47,8 @@ var points;
 var gameJustStarted = false;
 var gameCanvas = null;
 var userAvatarUrl = '';
+var avatarEnabled = false;
+var avatarImg = null;
 
 // ==================== 辅助函数 ====================
 
@@ -56,6 +59,7 @@ function buildSaveData() {
     currentAccessory: currentAccessory,
     unlockedThemes: unlockedThemes,
     unlockedAccessories: unlockedAccessories,
+    avatarEnabled: avatarEnabled
   };
 }
 
@@ -95,6 +99,7 @@ function startGame() {
   medalLevel = 0;
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
+  destroyUserInfoButton();
   gameJustStarted = true;
   state = C.STATE.PLAYING;
 }
@@ -144,9 +149,19 @@ function die() {
     wx.showToast({ title: '解锁新主题！', icon: 'none', duration: 2000 });
   }
 
-  // 积分 +1
-  points += 1;
-  Storage.savePoints(points);
+  // 积分奖励：2分起奖，基础1 + 每5分+1，连击加成，单局上限20
+  var earned = 0;
+  if (score >= 2) {
+    earned = 1 + Math.floor((score - 2) / 5);
+    if (combo >= 7) earned += 3;
+    else if (combo >= 5) earned += 2;
+  }
+  earned = Math.min(earned, 20);
+  if (earned > 0) {
+    points += earned;
+    Storage.savePoints(points);
+    wx.showToast({ title: '+' + earned + ' 💎', icon: 'none', duration: 1200 });
+  }
 
   // 连击加分
   if (combo >= 5) {
@@ -155,7 +170,7 @@ function die() {
   }
 
   // 预渲染纪念卡
-  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
 }
 
 function restartGame() {
@@ -177,8 +192,129 @@ function restartGame() {
   medalLevel = 0;
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
+  destroyUserInfoButton();
   gameJustStarted = true;
   state = C.STATE.PLAYING;
+}
+
+function fetchUserAvatar() {
+  wx.getSetting({
+    success: function(s) {
+      if (s.authSetting['scope.userInfo']) {
+        wx.getUserInfo({
+          success: function(u) {
+            userAvatarUrl = u.userInfo.avatarUrl;
+            if (userAvatarUrl && (!avatarImg || avatarImg._src !== userAvatarUrl)) {
+              avatarImg = wx.createImage();
+              avatarImg._src = userAvatarUrl;
+              avatarImg.src = userAvatarUrl;
+            }
+          }
+        });
+      }
+    }
+  });
+}
+
+function setUserAvatar(url) {
+  userAvatarUrl = url;
+  if (userAvatarUrl && (!avatarImg || avatarImg._src !== userAvatarUrl)) {
+    avatarImg = wx.createImage();
+    avatarImg._src = userAvatarUrl;
+    avatarImg.src = userAvatarUrl;
+  }
+  avatarEnabled = true;
+  Storage.saveData(buildSaveData());
+}
+
+var _userInfoButton = null;
+
+function showUserInfoButton() {
+  // 销毁旧的
+  if (_userInfoButton) { _userInfoButton.destroy(); _userInfoButton = null; }
+
+  if (!wx.createUserInfoButton) {
+    wx.showToast({ title: '当前版本不支持，请在设置中授权', icon: 'none' });
+    return;
+  }
+
+  // 计算头像按钮在屏幕上的位置（与 ui.js drawStartScreen 同步）
+  var titleY = C.GAME_TOP + 40;
+  var logoY = titleY + 200;
+  var btnRowY = logoY + 200;
+  var circleR = 15;
+  var spacing = 12;
+  var totalW = circleR * 2 * 3 + spacing * 2;
+  var startX = (C.W - totalW) / 2;
+  var btnCX = startX + circleR * 3 + spacing; // 中间按钮（头像）
+  var btnCY = btnRowY;
+
+  var btnSize = 40;
+  _userInfoButton = wx.createUserInfoButton({
+    type: 'text',
+    text: '',
+    style: {
+      left: btnCX - btnSize / 2,
+      top: btnCY - btnSize / 2,
+      width: btnSize,
+      height: btnSize,
+      lineHeight: btnSize,
+      backgroundColor: 'transparent',
+      color: 'transparent',
+      textAlign: 'center',
+      fontSize: 0,
+      borderRadius: btnSize / 2
+    }
+  });
+
+  _userInfoButton.onTap(function(res) {
+    _userInfoButton.destroy();
+    _userInfoButton = null;
+    if (res.userInfo) {
+      setUserAvatar(res.userInfo.avatarUrl);
+      wx.showToast({ title: '头像纹理已开启', icon: 'none', duration: 1500 });
+    } else {
+      wx.showToast({ title: '需要授权才能使用头像', icon: 'none' });
+    }
+  });
+
+  wx.showToast({ title: '点击中间按钮授权', icon: 'none', duration: 2000 });
+}
+
+function destroyUserInfoButton() {
+  if (_userInfoButton) { _userInfoButton.destroy(); _userInfoButton = null; }
+}
+
+function toggleAvatar() {
+  if (userAvatarUrl) {
+    // 已有头像：切换开关
+    avatarEnabled = !avatarEnabled;
+    Storage.saveData(buildSaveData());
+    wx.showToast({ title: avatarEnabled ? '头像纹理已开启' : '头像纹理已关闭', icon: 'none', duration: 1500 });
+    return;
+  }
+
+  // 未授权：先检查
+  wx.getSetting({
+    success: function(s) {
+      if (s.authSetting['scope.userInfo']) {
+        // 已授权：静默获取
+        wx.getUserInfo({
+          success: function(u) {
+            setUserAvatar(u.userInfo.avatarUrl);
+            wx.showToast({ title: '头像纹理已开启', icon: 'none', duration: 1500 });
+          },
+          fail: function() {
+            // getUserInfo 失败，用原生按钮
+            showUserInfoButton();
+          }
+        });
+      } else {
+        // 未授权：弹出原生授权按钮
+        showUserInfoButton();
+      }
+    }
+  });
 }
 
 // ==================== 对外 API ====================
@@ -197,19 +333,12 @@ function init(canvas, ctx, params) {
   unlockedThemes = data.unlockedThemes;
   unlockedAccessories = data.unlockedAccessories || { none: true };
   points = data.points;
+  avatarEnabled = data.avatarEnabled || false;
 
   isDailyChallenge = false;
   Memorial.ensureMemorialCanvas();
-  // 获取微信头像
-  wx.getSetting({
-    success: function(s) {
-      if (s.authSetting['scope.userInfo']) {
-        wx.getUserInfo({
-          success: function(u) { userAvatarUrl = u.userInfo.avatarUrl; }
-        });
-      }
-    }
-  });
+  // 如果之前开启了头像模式，静默拉取头像（已授权则成功，未授权则无声失败）
+  if (avatarEnabled) fetchUserAvatar();
   gotoMenu();
 }
 
@@ -353,7 +482,10 @@ function draw(ctx) {
       currentTheme: currentTheme,
       points: points,
       paneling: paneling,
-      unlockedAccessories: unlockedAccessories
+      unlockedAccessories: unlockedAccessories,
+      avatarEnabled: avatarEnabled,
+      avatarImg: avatarImg,
+      userAvatarUrl: userAvatarUrl
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
@@ -379,7 +511,7 @@ function draw(ctx) {
       ctx.fill();
       ctx.restore();
     }
-    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio);
+    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
     // 倍率标在鸟上方
     if (chargeMultiplier > 1) {
       ctx.save();
@@ -436,7 +568,7 @@ function draw(ctx) {
   } else if (state === C.STATE.DEAD) {
     ctx.fillStyle = t.bgCard;
     ctx.fillRect(0, 0, C.W, C.H);
-    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio);
+    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawGameOverPanel(ctx, t, {
       score: score,
@@ -450,7 +582,10 @@ function draw(ctx) {
       pipesPassed: pipesPassed,
       currentAccessory: currentAccessory,
       memorialMsg: memorialMsg,
-      petals: petals
+      petals: petals,
+      userAvatarUrl: userAvatarUrl,
+      avatarEnabled: avatarEnabled,
+      avatarImg: avatarImg
     });
   }
 
@@ -470,14 +605,16 @@ function onTouch(e) {
     return;
   }
 
-  // MEMORIAL：保存分享 / 再来一次
-  if (state === C.STATE.MEMORIAL) {
-    var mAct = UI.hitTestMemorial(tx, ty);
-    if (mAct.action === 'shareCard') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
+  // MEMORIAL：保存分享 / 再来一次 / 授权头像（仅松手触发）
+  if (state === C.STATE.MEMORIAL && !(e.touches && e.touches.length > 0)) {
+    var mAct = UI.hitTestMemorial(tx, ty, userAvatarUrl);
+    if (mAct.action === 'authAvatar') {
+      fetchUserAvatar();
+    } else if (mAct.action === 'shareCard') {
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
       Memorial.shareMemorialCard();
     } else if (mAct.action === 'saveToAlbum') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
       Memorial.saveToAlbum();
     } else if (mAct.action === 'replay') {
       restartGame();
@@ -485,10 +622,11 @@ function onTouch(e) {
     return;
   }
 
-  // DEAD：查看纪念卡 / 再来一次
-  if (state === C.STATE.DEAD) {
+  // DEAD：查看纪念卡 / 再来一次（仅松手触发）
+  if (state === C.STATE.DEAD && !(e.touches && e.touches.length > 0)) {
     var dAct = UI.hitTestGameOver(tx, ty, {});
     if (dAct.action === 'showMemorial') {
+      fetchUserAvatar();
       state = C.STATE.MEMORIAL;
     } else if (dAct.action === 'replay') {
       restartGame();
@@ -541,8 +679,8 @@ function onTouch(e) {
     return;
   }
 
-  // MENU：主题 / 配饰 / 每日挑战 / 调试 / 开始
-  if (state === C.STATE.MENU) {
+  // MENU：主题 / 配饰 / 头像 / 开始（仅松手触发，防止重复）
+  if (state === C.STATE.MENU && !(e.touches && e.touches.length > 0)) {
     var t = C.getT(currentTheme);
     var mAct = UI.hitTestMenu(tx, ty, {
       t: t,
@@ -551,13 +689,16 @@ function onTouch(e) {
       unlockedThemes: unlockedThemes,
       points: points,
       paneling: paneling,
-      unlockedAccessories: unlockedAccessories
+      unlockedAccessories: unlockedAccessories,
+      avatarEnabled: avatarEnabled,
+      userAvatarUrl: userAvatarUrl
     });
 
     if (!mAct) return;
     if (mAct.action === 'closePanel') {
       paneling = null;
     } else if (mAct.action === 'openPanel') {
+      destroyUserInfoButton();
       paneling = mAct.panel;
       panelJustOpened = true;
     } else if (mAct.action === 'debug') {
@@ -582,6 +723,8 @@ function onTouch(e) {
       Storage.saveData(buildSaveData());
     } else if (mAct.action === 'toast') {
       wx.showToast({ title: mAct.msg, icon: 'none' });
+    } else if (mAct.action === 'toggleAvatar') {
+      toggleAvatar();
     } else if (mAct.action === 'startGame') {
       startGame();
     }
@@ -611,6 +754,7 @@ function onTouch(e) {
 }
 
 function destroy() {
+  destroyUserInfoButton();
   petals = [];
   Memorial.destroyMemorialCanvas();
   Sound.destroy();
