@@ -544,7 +544,6 @@ function onTouch(e) {
     } else if (mAct.action === 'openPanel') {
       paneling = mAct.panel;
       panelJustOpened = true;
-      panelScroll = 0;
     } else if (mAct.action === 'debug') {
       points = mAct.points;
       Storage.savePoints(points);
