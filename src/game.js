@@ -266,24 +266,27 @@ function update(dt) {
   }
   while (pipes.length > 0 && pipes[0].x + C.PIPE_WIDTH < -10) pipes.shift();
 
-  // 星星拾取检测（无敌时不收集，防止无限循环）
+  // 星星拾取检测
   var birdR = C.BIRD_SIZE / 2;
-  if (invincibleTimer <= 0) {
-    for (var si = 0; si < stars.length; si++) {
-      stars[si].x -= scroll;
-      if (Star.checkPickup(stars[si], C.BIRD_X, birdY, birdR)) {
-        stars[si].collected = true;
-        var starScore = stars[si].bonus ? (2 + 2) * chargeMultiplier : 2 * chargeMultiplier;
-        score += starScore;
-        combo++;
-        Sound.playCombo(combo);
-        if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
-        Sound.playStarPickup();
-      }
+  for (var si = 0; si < stars.length; si++) {
+    stars[si].x -= scroll;
+    if (Star.checkPickup(stars[si], C.BIRD_X, birdY, birdR)) {
+      stars[si].collected = true;
+      var starScore = stars[si].bonus ? (2 + 2) * chargeMultiplier : 2 * chargeMultiplier;
+      // 连击加成：GREAT+1, AMAZING+2, FANTASTIC+3, LEGENDARY+4
+      if (combo >= 7) starScore += 4;
+      else if (combo >= 5) starScore += 3;
+      else if (combo >= 3) starScore += 2;
+      else if (combo >= 2) starScore += 1;
+      score += starScore;
+      combo++;
+      Sound.playCombo(combo);
+      // 里程碑奖励
+      if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
+      else if (combo === 5) { score += 15; }
+      else if (combo === 7) { score += 30; }
+      Sound.playStarPickup();
     }
-  } else {
-    // 无敌时星星照常滚动但不收集
-    for (var si = 0; si < stars.length; si++) { stars[si].x -= scroll; }
   }
 
   // 碰撞检测（无敌时不检测）
