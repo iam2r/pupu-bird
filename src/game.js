@@ -439,7 +439,7 @@ function draw(ctx) {
     });
   }
 
-  UI.drawBackButton(ctx, currentTheme);
+  if (state !== C.STATE.MENU) UI.drawBackButton(ctx, currentTheme);
 }
 
 function onTouch(e) {
