@@ -282,7 +282,7 @@ function update(dt) {
       combo++;
       Sound.playCombo(combo);
       // 里程碑奖励
-      if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
+      if (combo % 3 === 0) { invincibleTimer = 2.5; Sound.playInvincible(); }
       else if (combo === 5) { score += 15; }
       else if (combo === 7) { score += 30; }
       Sound.playStarPickup();
@@ -302,7 +302,7 @@ function update(dt) {
   // 移除屏幕外星星（未收集的星星漏掉 → 断连击）
   for (si = stars.length - 1; si >= 0; si--) {
     if (stars[si].x < -20) {
-      if (!stars[si].collected) combo = Math.max(0, combo - 2);
+      if (!stars[si].collected) combo = 0;
       stars.splice(si, 1);
     }
   }
