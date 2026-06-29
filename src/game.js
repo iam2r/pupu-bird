@@ -27,6 +27,7 @@ var stars = [];
 // ---- 连击 & 倍率 ----
 var combo = 0;
 var chargeMultiplier = 1;
+var chargeBoostTimer = 0;
 var multiBurstTime = 0;
 var invincibleTimer = 0;
 
@@ -747,13 +748,14 @@ function onTouch(e) {
 
   // PLAYING：长按蓄力 / 点击飞行
   if (state === C.STATE.PLAYING) {
-    if (gameJustStarted) { gameJustStarted = false; return; }
     if (e.touches && e.touches.length > 0) {
-      // 按下：开始蓄力
+      // 按下：立即开始蓄力（gameJustStarted 不阻止）
+      if (gameJustStarted) gameJustStarted = false;
       if (!isCharging) { chargeStartTime = Date.now(); isCharging = true; chargeWasFull = false; Sound.startCharge(); }
       return;
     }
-    // 松手：释放（chargeRatio<0.4 视为轻点）
+    // 松手：释放（gameJustStarted 时忽略，防止开始按钮误触）
+    if (gameJustStarted) { gameJustStarted = false; return; }
     if (isCharging) {
       var ratio = chargeRatio < 0.4 ? 0 : chargeRatio;
       var vel = C.CHARGE_MIN_VELOCITY + (C.CHARGE_MAX_VELOCITY - C.CHARGE_MIN_VELOCITY) * ratio;
