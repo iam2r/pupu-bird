@@ -399,10 +399,6 @@ function update(dt) {
   var t = C.getT(currentTheme);
   for (var i = 0; i < pipes.length; i++) {
     var p = pipes[i];
-    if (p.destroyAnim > 0) {
-      Pipe.updatePipeDestroy(p, s);
-      continue;
-    }
     p.x -= scroll;
     if (Pipe.hasPassedPipe(p, C.BIRD_X)) {
       p.passed = true;
@@ -414,7 +410,7 @@ function update(dt) {
       Particles.spawnPetals(petals, C.BIRD_X, birdY, 8, t, 60, 50);
     }
   }
-  while (pipes.length > 0 && (pipes[0].x + C.PIPE_WIDTH < -10 || Pipe.isPipeDestroyed(pipes[0]))) pipes.shift();
+  while (pipes.length > 0 && pipes[0].x + C.PIPE_WIDTH < -10) pipes.shift();
 
   // 星星拾取检测
   var birdR = C.BIRD_SIZE / 2;
@@ -439,23 +435,11 @@ function update(dt) {
     }
   }
 
-  // 碰撞检测（无敌时摧毁管道）
-  if (birdY < C.GAME_TOP || birdY > C.GAME_BOTTOM) {
-    if (invincibleTimer <= 0) { die(); return; }
-    // 无敌时碰边界也不死
-  }
-  for (i = 0; i < pipes.length; i++) {
-    var pc = pipes[i];
-    if (pc.destroyAnim > 0) continue;
-    if (Pipe.checkCollision(pc, C.BIRD_X, birdY, birdR)) {
-      if (invincibleTimer > 0) {
-        // 无敌：摧毁管道
-        pc.destroyAnim = 1;
-        score += 1;
-        Sound.playScore();
-      } else {
-        die(); return;
-      }
+  // 碰撞检测（无敌时不检测）
+  if (invincibleTimer <= 0) {
+    if (birdY < C.GAME_TOP || birdY > C.GAME_BOTTOM) { die(); return; }
+    for (i = 0; i < pipes.length; i++) {
+      if (Pipe.checkCollision(pipes[i], C.BIRD_X, birdY, birdR)) { die(); return; }
     }
   }
   // 二次防护：die 后不走后续逻辑
