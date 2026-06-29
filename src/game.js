@@ -286,7 +286,7 @@ function update(dt) {
       combo++;
       Sound.playCombo(combo);
       // 里程碑奖励
-      if (combo % 3 === 0) { invincibleTimer = 2.5; Sound.playInvincible(); }
+      if (combo % 3 === 0) { invincibleTimer = Math.min(5, 2 + Math.floor(combo / 3) * 0.5); Sound.playInvincible(); }
       else if (combo === 5) { score += 15; }
       else if (combo === 7) { score += 30; }
       Sound.playStarPickup();
@@ -347,7 +347,8 @@ function draw(ctx) {
   } else if (state === C.STATE.PLAYING) {
     // 无敌光环（金→红递减警告）
     if (invincibleTimer > 0) {
-      var ratio = invincibleTimer / 2.5; // 1.0→0
+      var maxInv = 2 + Math.floor(combo / 3) * 0.5;
+      var ratio = invincibleTimer / maxInv;
       var r = 255, g = Math.floor(215 * ratio + 51 * (1 - ratio)), b = Math.floor(0 * ratio + 51 * (1 - ratio));
       var invColor = 'rgb(' + r + ',' + g + ',' + b + ')';
       var pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.015);
