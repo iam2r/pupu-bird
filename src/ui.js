@@ -608,7 +608,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.lineWidth = 1;
   C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
   ctx.stroke();
-  C.drawText(ctx, '💾 保存分享', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 13, t.textPri, true);
+  C.drawText(ctx, '保存分享', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 13, t.textPri, true);
 
   // 再来一次按钮
   var replayBtnX = saveBtnX + btnW + btnSpacing;

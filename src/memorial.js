@@ -183,7 +183,7 @@ function saveMemorialCard() {
       } else {
         wx.saveImageToPhotosAlbum({
           filePath: res.tempFilePath,
-          success: function() { wx.showToast({ title: '已保存到相册 ', icon: 'none' }); },
+          success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
           fail: function() { wx.showToast({ title: '保存失败，请重试', icon: 'none' }); }
         });
       }

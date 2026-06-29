@@ -399,16 +399,25 @@ function draw(ctx) {
       else                 { comboText = 'GOOD';      comboColor = '#FFFFFF'; comboSize = 22; }
       ctx.save();
       var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
-      ctx.globalAlpha = 0.8;
-      ctx.fillStyle = comboColor;
-      ctx.font = 'bold ' + Math.floor(comboSize * cPop) + 'px sans-serif';
+      var cSize = Math.floor(comboSize * cPop);
+      var cx = C.W / 2, cy = C.GAME_TOP + 135;
+      // 阴影/描边（深色底层，偏移 1.5px 画两次）
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.font = 'bold ' + cSize + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(comboText, C.W / 2, C.GAME_TOP + 135);
+      ctx.fillText(comboText, cx + 1.5, cy);
+      ctx.fillText(comboText, cx - 1.5, cy);
+      ctx.fillText(comboText, cx, cy + 1.5);
+      ctx.fillText(comboText, cx, cy - 1.5);
+      // 主文字
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = comboColor;
+      ctx.fillText(comboText, cx, cy);
       // 小字 xN
       ctx.globalAlpha = 0.6;
       ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('x' + combo, C.W / 2, C.GAME_TOP + 155);
+      ctx.fillText('x' + combo, cx, C.GAME_TOP + 155);
       ctx.restore();
     }
   } else if (state === C.STATE.DEAD) {
