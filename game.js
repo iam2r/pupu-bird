@@ -36,12 +36,20 @@ wx.onTouchStart(function(e) { game.onTouch(e); });
 wx.onTouchMove(function(e) { game.onTouch(e); });
 wx.onTouchEnd(function(e) { game.onTouch(e); });
 
+// 开放数据域 shared canvas（排行榜）
+var openDataContext = wx.getOpenDataContext();
+var sharedCanvas = openDataContext.canvas;
+sharedCanvas.width = W * dpr;
+sharedCanvas.height = H * dpr;
+
 function loop(now) {
   var dt = lastTime ? (now - lastTime) / 1000 : 0.016;
   lastTime = now;
   game.update(dt);
   ctx.clearRect(0, 0, W, H);
   game.draw(ctx);
+  // 排行榜 shared canvas 叠加（未显示时透明无影响）
+  ctx.drawImage(sharedCanvas, 0, 0, W, H);
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);

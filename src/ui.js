@@ -106,6 +106,20 @@ function drawScorePanel(ctx, score, t) {
   ctx.textAlign = 'left';
 }
 
+// ==================== 排行榜图标：三条竖方块（降序） ====================
+function drawRankBars(ctx, cx, cy, color) {
+  var barW = 3.5, gap = 2.5;
+  var h1 = 11, h2 = 7, h3 = 4;
+  var totalW = barW * 3 + gap * 2;
+  var baseY = cy + 5;
+  var startX = cx - totalW / 2;
+
+  ctx.fillStyle = color;
+  ctx.fillRect(startX, baseY - h1, barW, h1);
+  ctx.fillRect(startX + barW + gap, baseY - h2, barW, h2);
+  ctx.fillRect(startX + (barW + gap) * 2, baseY - h3, barW, h3);
+}
+
 // ==================== 开始画面 ====================
 function drawStartScreen(ctx, t, stateData) {
   var currentAccessory = stateData.currentAccessory;
@@ -149,8 +163,8 @@ function drawStartScreen(ctx, t, stateData) {
 
   var btnRowY = logoY + 200;
   var circleR = 15;
-  var spacing = 12;
-  var totalW = circleR * 2 * 3 + spacing * 2;
+  var spacing = 10;
+  var totalW = circleR * 2 * 4 + spacing * 3;
   var startX = (C.W - totalW) / 2;
 
   // 1. 主题按钮 — Canvas色块圆圈（bird色填充 + accent色描边，跟随主题色）
@@ -185,8 +199,21 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = t.accent;
-  ctx.lineWidth = avatarEnabled ? 2 : 1;
+  ctx.lineWidth = avatarEnabled ? 2 : 1.5;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  // 未授权时：右上角 "+" 引导授权
+  if (!avatarEnabled) {
+    var badgeR = 5;
+    var badgeCX = btn2CX + 9, badgeCY = btnRowY - 9;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = t.accent;
+    ctx.fillRect(badgeCX - 2.5, badgeCY - 0.5, 5, 1);
+    ctx.fillRect(badgeCX - 0.5, badgeCY - 2.5, 1, 5);
+  }
   if (avatarEnabled && avatarImg && avatarImg.width > 0) {
     // 显示头像缩略图
     ctx.save();
@@ -211,7 +238,7 @@ function drawStartScreen(ctx, t, stateData) {
     ctx.restore();
   }
 
-  // 3. 配饰按钮 — 主题色底圆 + 微型小鸟(半径10px)戴配饰，跟随主题色
+  // 3. 排行榜按钮 — 主题色底圆 + 竖条降序图标，跟随主题色
   var btn3CX = startX + circleR * 5 + spacing * 2;
   ctx.save();
   ctx.globalAlpha = 0.18;
@@ -221,7 +248,20 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.strokeStyle = t.accent;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  var mr = 10, bx = btn3CX, by = btnRowY;
+  // 三条竖方块，越来越低（排行图标）
+  drawRankBars(ctx, btn3CX, btnRowY, t.accent);
+
+  // 4. 配饰按钮 — 主题色底圆 + 微型小鸟(半径10px)戴配饰，跟随主题色
+  var btn4CX = startX + circleR * 7 + spacing * 3;
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = t.accent;
+  ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = t.accent;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  var mr = 10, bx = btn4CX, by = btnRowY;
   ctx.save();
   ctx.translate(bx, by);
   Bird.drawBirdBody(ctx, mr, t, false);
@@ -816,8 +856,8 @@ function hitTestMenu(tx, ty, stateData) {
   var logoY = titleY + 200;
   var btnRowY = logoY + 200;
   var circleR = 15;
-  var spacing = 12;
-  var totalW = circleR * 2 * 3 + spacing * 2;
+  var spacing = 10;
+  var totalW = circleR * 2 * 4 + spacing * 3;
   var startX = (C.W - totalW) / 2;
 
   // 1. 主题按钮 → 打开主题面板
@@ -832,13 +872,19 @@ function hitTestMenu(tx, ty, stateData) {
     return { action: 'toggleAvatar' };
   }
 
-  // 3. 配饰按钮 → 打开配饰面板
+  // 3. 排行榜按钮 → 展示好友排行榜
   var btn3CX = startX + circleR * 5 + spacing * 2;
   if (Math.sqrt((tx-btn3CX)*(tx-btn3CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
+    return { action: 'showLeaderboard' };
+  }
+
+  // 4. 配饰按钮 → 打开配饰面板
+  var btn4CX = startX + circleR * 7 + spacing * 3;
+  if (Math.sqrt((tx-btn4CX)*(tx-btn4CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
     return { action: 'openPanel', panel: 'accessory' };
   }
 
-  // 4. Start 按钮（btnRowY + 50，140x40 矩形检测）
+  // 5. Start 按钮（btnRowY + 50，140x40 矩形检测）
   var startBtnW = 140, startBtnH = 40;
   var startBtnX = (C.W - startBtnW) / 2;
   var startBtnCY = btnRowY + 50;

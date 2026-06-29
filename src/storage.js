@@ -4,7 +4,7 @@
 var C = require('./config.js');
 
 function loadData() {
-  var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points, avatarEnabled;
+  var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points, avatarEnabled, rankingBest;
   try {
     var raw = wx.getStorageSync('pupu_bird_data');
     if (raw) {
@@ -17,6 +17,7 @@ function loadData() {
       dailyDate = d.dailyDate || '';
       dailyBest = d.dailyBest || 0;
       avatarEnabled = d.avatarEnabled || false;
+      rankingBest = d.rankingBest || 0;
     } else {
       best = 0;
       currentTheme = 'sakura';
@@ -26,12 +27,14 @@ function loadData() {
       dailyDate = '';
       dailyBest = 0;
       avatarEnabled = false;
+      rankingBest = 0;
     }
   } catch(e) {
     best = 0; currentTheme = 'sakura'; currentAccessory = 'none';
     unlockedThemes = { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
     unlockedAccessories = { none: true };
     dailyDate = ''; dailyBest = 0; avatarEnabled = false;
+    rankingBest = 0;
   }
   points = wx.getStorageSync('pupu_bird_points') || 0;
 
@@ -48,7 +51,8 @@ function loadData() {
     dailyDate: dailyDate,
     dailyBest: dailyBest,
     points: points,
-    avatarEnabled: avatarEnabled
+    avatarEnabled: avatarEnabled,
+    rankingBest: rankingBest
   };
 }
 
@@ -62,7 +66,8 @@ function saveData(data) {
       unlockedAccessories: data.unlockedAccessories,
       dailyDate: data.dailyDate,
       dailyBest: data.dailyBest,
-      avatarEnabled: data.avatarEnabled
+      avatarEnabled: data.avatarEnabled,
+      rankingBest: data.rankingBest
     }));
   } catch(e) {}
 }

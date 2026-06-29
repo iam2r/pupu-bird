@@ -36,6 +36,9 @@ var currentTheme, currentAccessory, unlockedThemes;
 var unlockedAccessories = {};
 var paneling = null;
 var panelJustOpened = false;
+var showingLeaderboard = false;
+var leaderboardJustOpened = false;
+var rankingBest = 0;  // 排行榜：最高复合分
 
 // ---- 花瓣粒子 ----
 var petals = [];
@@ -60,8 +63,59 @@ function buildSaveData() {
     currentAccessory: currentAccessory,
     unlockedThemes: unlockedThemes,
     unlockedAccessories: unlockedAccessories,
-    avatarEnabled: avatarEnabled
+    avatarEnabled: avatarEnabled,
+    rankingBest: rankingBest
   };
+}
+
+function uploadToCloud() {
+  var now = Math.floor(Date.now() / 1000);
+  console.log('[Leaderboard] 上传: rankingBest=' + rankingBest);
+  wx.setUserCloudStorage({
+    KVDataList: [
+      { key: 'bestScore', value: JSON.stringify({ wxgame: { score: rankingBest, update_time: now } }) }
+    ],
+    success: function() {
+      console.log('[Leaderboard] 上传成功');
+      if (showingLeaderboard) {
+        try { wx.getOpenDataContext().postMessage({ type: 'refresh' }); } catch(e) {}
+      }
+    },
+    fail: function(err) {
+      console.log('[Leaderboard] 上传失败:', JSON.stringify(err));
+    }
+  });
+}
+
+function showLeaderboardOverlay() {
+  showingLeaderboard = true;
+  leaderboardJustOpened = true;
+  try {
+    var openDataContext = wx.getOpenDataContext();
+    var si = wx.getSystemInfoSync();
+    openDataContext.postMessage({
+      type: 'show',
+      W: si.windowWidth,
+      H: si.windowHeight,
+      dpr: si.pixelRatio || 1,
+      // 本地数据兜底：云存储查不到时用
+      localBestScore: rankingBest,
+      selfAvatarUrl: userAvatarUrl || ''
+    });
+  } catch(e) {}
+}
+
+function hideLeaderboardOverlay() {
+  showingLeaderboard = false;
+  try {
+    wx.getOpenDataContext().postMessage({ type: 'hide' });
+  } catch(e) {}
+}
+
+function forwardTouchToLeaderboard(tx, ty, phase) {
+  try {
+    wx.getOpenDataContext().postMessage({ type: 'touch', x: tx, y: ty, phase: phase });
+  } catch(e) {}
 }
 
 function gotoMenu() {
@@ -172,6 +226,17 @@ function die() {
 
   // 预渲染纪念卡
   Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+
+  // 计算排行榜复合分 & 上传云存储
+  if (score > 0) {
+    // 复合分 = 得分 + 得分/管道数（同时奖励高分和高效率）
+    var composite = score + Math.floor(score / Math.max(pipesPassed, 1));
+    if (composite > rankingBest) {
+      rankingBest = composite;
+      Storage.saveData(buildSaveData());
+      uploadToCloud();
+    }
+  }
 }
 
 function restartGame() {
@@ -335,6 +400,7 @@ function init(canvas, ctx, params) {
   unlockedAccessories = data.unlockedAccessories || { none: true };
   points = data.points;
   avatarEnabled = data.avatarEnabled || false;
+  rankingBest = data.rankingBest || 0;
 
   isDailyChallenge = false;
   Memorial.ensureMemorialCanvas();
@@ -678,6 +744,29 @@ function onTouch(e) {
     }
   }
 
+  // 排行榜显示中：转发触摸给开放数据域 / 关闭
+  if (showingLeaderboard && state === C.STATE.MENU) {
+    var hasTouchesLB = e.touches && e.touches.length > 0;
+    if (hasTouchesLB) {
+      // touchStart/Move：转发给开放数据域滚动
+      leaderboardJustOpened = false;
+      var phase = e.type === 'touchstart' ? 'start' : 'move';
+      forwardTouchToLeaderboard(tx, ty, phase);
+    } else {
+      // touchEnd
+      if (leaderboardJustOpened) { leaderboardJustOpened = false; return; }
+      // 点击排行榜面板外 → 关闭
+      var lbW = C.W * 0.88, lbH = C.H * 0.75;
+      var lbX = (C.W - lbW) / 2, lbY = (C.H - lbH) / 2;
+      if (tx < lbX || tx > lbX + lbW || ty < lbY || ty > lbY + lbH) {
+        hideLeaderboardOverlay();
+        return;
+      }
+      forwardTouchToLeaderboard(tx, ty, 'end');
+    }
+    return;
+  }
+
   // 面板内交互委托给 UI 模块
   if (paneling && state === C.STATE.MENU) {
     // touchStart 时清除 panelJustOpened，避免吞掉关闭按钮的首次点击
@@ -743,6 +832,8 @@ function onTouch(e) {
       toggleAvatar();
     } else if (mAct.action === 'startGame') {
       startGame();
+    } else if (mAct.action === 'showLeaderboard') {
+      showLeaderboardOverlay();
     }
     return;
   }
