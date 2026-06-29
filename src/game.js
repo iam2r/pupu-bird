@@ -248,8 +248,9 @@ function update(dt) {
     }
   }
 
-  // 管道移动 & 计分
-  var scroll = C.SCROLL_SPEED * s;
+  // 管道移动 & 计分（无敌时加速）
+  var scrollSpeed = invincibleTimer > 0 ? C.SCROLL_SPEED * 1.5 : C.SCROLL_SPEED;
+  var scroll = scrollSpeed * s;
   var t = C.getT(currentTheme);
   for (var i = 0; i < pipes.length; i++) {
     var p = pipes[i];
@@ -265,18 +266,23 @@ function update(dt) {
   }
   while (pipes.length > 0 && pipes[0].x + C.PIPE_WIDTH < -10) pipes.shift();
 
-  // 星星拾取检测
+  // 星星拾取检测（无敌时不收集，防止无限循环）
   var birdR = C.BIRD_SIZE / 2;
-  for (var si = 0; si < stars.length; si++) {
-    stars[si].x -= scroll;  // 星星随管道左移
-    if (Star.checkPickup(stars[si], C.BIRD_X, birdY, birdR)) {
-      stars[si].collected = true;
-      var starScore = stars[si].bonus ? (2 + 2) * chargeMultiplier : 2 * chargeMultiplier;
-      score += starScore;
-      combo++;
-      if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
-      Sound.playStarPickup();
+  if (invincibleTimer <= 0) {
+    for (var si = 0; si < stars.length; si++) {
+      stars[si].x -= scroll;
+      if (Star.checkPickup(stars[si], C.BIRD_X, birdY, birdR)) {
+        stars[si].collected = true;
+        var starScore = stars[si].bonus ? (2 + 2) * chargeMultiplier : 2 * chargeMultiplier;
+        score += starScore;
+        combo++;
+        if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
+        Sound.playStarPickup();
+      }
     }
+  } else {
+    // 无敌时星星照常滚动但不收集
+    for (var si = 0; si < stars.length; si++) { stars[si].x -= scroll; }
   }
 
   // 碰撞检测（无敌时不检测）
