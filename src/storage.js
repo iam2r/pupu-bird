@@ -6,13 +6,13 @@ var C = require('./config.js');
 function loadData() {
   var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points;
   try {
-    var raw = wx.getStorageSync('flappy_data');
+    var raw = wx.getStorageSync('pupu_bird_data');
     if (raw) {
       var d = JSON.parse(raw);
       best = d.best || 0;
       currentTheme = d.theme || 'sakura';
       currentAccessory = d.accessory || 'none';
-      unlockedThemes = d.unlockedThemes || { sakura: true, starry: false, ocean: false };
+      unlockedThemes = d.unlockedThemes || { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
       unlockedAccessories = d.unlockedAccessories || { none: true };
       dailyDate = d.dailyDate || '';
       dailyBest = d.dailyBest || 0;
@@ -20,18 +20,18 @@ function loadData() {
       best = 0;
       currentTheme = 'sakura';
       currentAccessory = 'none';
-      unlockedThemes = { sakura: true, starry: false, ocean: false };
+      unlockedThemes = { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
       unlockedAccessories = { none: true };
       dailyDate = '';
       dailyBest = 0;
     }
   } catch(e) {
     best = 0; currentTheme = 'sakura'; currentAccessory = 'none';
-    unlockedThemes = { sakura: true, starry: false, ocean: false };
+    unlockedThemes = { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
     unlockedAccessories = { none: true };
     dailyDate = ''; dailyBest = 0;
   }
-  points = wx.getStorageSync('flappy_points') || 0;
+  points = wx.getStorageSync('pupu_bird_points') || 0;
 
   // 检查每日挑战日期
   var today = C.getTodayStr();
@@ -51,7 +51,7 @@ function loadData() {
 
 function saveData(data) {
   try {
-    wx.setStorageSync('flappy_data', JSON.stringify({
+    wx.setStorageSync('pupu_bird_data', JSON.stringify({
       best: data.best,
       theme: data.currentTheme,
       accessory: data.currentAccessory,
@@ -65,7 +65,7 @@ function saveData(data) {
 
 function savePoints(points) {
   try {
-    wx.setStorageSync('flappy_points', points);
+    wx.setStorageSync('pupu_bird_points', points);
   } catch(e) {}
 }
 
