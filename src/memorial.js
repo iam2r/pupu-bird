@@ -11,7 +11,9 @@ var memorialCtx = null;
 function ensureMemorialCanvas() {
   if (memorialCanvas) return;
   try {
-    memorialCanvas = wx.createOffscreenCanvas({ type: '2d', width: 750, height: 1100 });
+    memorialCanvas = wx.createCanvas();
+    memorialCanvas.width = 750;
+    memorialCanvas.height = 1100;
     memorialCtx = memorialCanvas.getContext('2d');
   } catch(e) {
     memorialCanvas = null;
@@ -181,11 +183,27 @@ function saveMemorialCard() {
       if (wx.showShareImageMenu) {
         wx.showShareImageMenu({ path: res.tempFilePath });
       } else {
-        wx.saveImageToPhotosAlbum({
-          filePath: res.tempFilePath,
-          success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
-          fail: function() { wx.showToast({ title: '保存失败，请重试', icon: 'none' }); }
+        // 先检查/请求相册权限
+        wx.getSetting({
+          success: function(setting) {
+            if (setting.authSetting['scope.writePhotosAlbum']) {
+              doSave();
+            } else {
+              wx.authorize({
+                scope: 'scope.writePhotosAlbum',
+                success: function() { doSave(); },
+                fail: function() { wx.showToast({ title: '请授权相册权限', icon: 'none' }); }
+              });
+            }
+          }
         });
+        function doSave() {
+          wx.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
+            fail: function() { wx.showToast({ title: '保存失败，请重试', icon: 'none' }); }
+          });
+        }
       }
     },
     fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
