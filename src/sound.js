@@ -203,6 +203,32 @@ function playInvincible() {
   }
 }
 
+// ---- 无敌倒计时警示音：短促滴声（越接近结束越快） ----
+var _lastInvBeep = -1;
+function playInvincibleCountdown(remaining) {
+  var ctx = ensureCtx();
+  if (!ctx) return;
+  // 每秒滴一次，<1秒时半秒滴一次
+  var interval = remaining <= 1 ? 0.5 : 1;
+  var beepIdx = Math.floor(remaining / interval);
+  if (beepIdx === _lastInvBeep) return;
+  _lastInvBeep = beepIdx;
+
+  var now = ctx.currentTime;
+  var osc = ctx.createOscillator();
+  var gain = ctx.createGain();
+  osc.type = 'square';
+  var freq = remaining <= 1 ? 2000 : 1200;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(0.12, now);
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.04);
+}
+function resetInvincibleBeep() {
+  _lastInvBeep = -1;
+}
+
 // ---- 蓄力满蓄提示音：短促清亮双音 ----
 function playChargeFull() {
   var ctx = ensureCtx();
@@ -273,6 +299,8 @@ module.exports = {
   updateCharge: updateCharge,
   stopCharge: stopCharge,
   playInvincible: playInvincible,
+  playInvincibleCountdown: playInvincibleCountdown,
+  resetInvincibleBeep: resetInvincibleBeep,
   playChargeFull: playChargeFull,
   playCombo: playCombo,
   destroy: destroy

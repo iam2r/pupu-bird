@@ -439,8 +439,12 @@ function update(dt) {
     Sound.updateCharge(chargeRatio);
   }
 
-  // 无敌衰减
-  if (invincibleTimer > 0) invincibleTimer = Math.max(0, invincibleTimer - s);
+  // 无敌衰减 + 倒计时警示音
+  if (invincibleTimer > 0) {
+    invincibleTimer = Math.max(0, invincibleTimer - s);
+    if (invincibleTimer <= 3 && invincibleTimer > 0) Sound.playInvincibleCountdown(invincibleTimer);
+    if (invincibleTimer <= 0) Sound.resetInvincibleBeep();
+  }
 
   // 管道生成
   var last = pipes[pipes.length - 1];
@@ -496,7 +500,7 @@ function update(dt) {
       combo++;
       Sound.playCombo(combo);
       // 里程碑奖励
-      if (combo % 3 === 0) { invincibleTimer = Math.min(3.5, 2 + Math.floor(combo / 3) * 0.5); Sound.playInvincible(); }
+      if (combo % 3 === 0) { invincibleTimer = Math.min(3.5, 2 + Math.floor(combo / 3) * 0.5); Sound.resetInvincibleBeep(); Sound.playInvincible(); }
       else if (combo === 5) { score += 15; }
       else if (combo === 7) { score += 30; }
       Sound.playStarPickup();
@@ -607,16 +611,20 @@ function draw(ctx) {
     }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawScorePanel(ctx, score, t);
-    // 无敌倒计时（跟连击一起）
+    // 无敌倒计时（显示在鸟下方，不分散注意力）
     if (invincibleTimer > 0) {
       var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
       ctx.save();
-      ctx.globalAlpha = 0.7 + 0.3 * pulse;
+      ctx.globalAlpha = 0.75 + 0.25 * pulse;
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 2;
+      ctx.font = 'bold 13px sans-serif';
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, C.GAME_TOP + 105 + 14 * 0.35);
+      ctx.textBaseline = 'top';
+      var textY = birdY + C.BIRD_SIZE * 0.9 + 8;
+      ctx.strokeText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, textY);
+      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, textY);
       ctx.restore();
     }
     // 连击大字（消消乐风格）
