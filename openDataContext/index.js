@@ -10,8 +10,6 @@ var dpr = 1;
 var visible = false;
 var friends = [];
 var myData = null;
-var localFallback = null;  // 主域传入的本地数据兜底
-var selfAvatarUrl = '';    // 自己的头像URL
 var scrollOffset = 0;
 var maxScroll = 0;
 var touchStartY = 0;
@@ -31,10 +29,6 @@ wx.onMessage(function(msg) {
     W = sharedCanvas.width / dpr || msg.W || 375;
     H = sharedCanvas.height / dpr || msg.H || 667;
     // 保存主域传入的本地数据作为兜底
-    if (msg.localBestScore !== undefined) {
-      localFallback = { bestScore: msg.localBestScore || 0 };
-    }
-    selfAvatarUrl = msg.selfAvatarUrl || '';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     visible = true;
     scrollOffset = 0;
@@ -114,7 +108,8 @@ function fetchAndRender() {
 
 function parseMyData(res) {
   try {
-    var kv = res.data && res.data.KVDataList ? res.data.KVDataList : [];
+    // getUserCloudStorage 返回 res.KVDataList（不是 res.data.KVDataList）
+    var kv = res.KVDataList || [];
     var bs = 0;
     for (var i = 0; i < kv.length; i++) {
       try {
@@ -159,18 +154,7 @@ function processAndRender(rawFriends, my) {
     }
   }
 
-  // 如果自己不在好友列表中，用云存储数据或本地兜底数据追加
-  var selfData = (my && my.bestScore > 0) ? my : localFallback;
-  console.log('[OpenData] selfInFriends:', selfInFriends, 'my:', JSON.stringify(my), 'localFallback:', JSON.stringify(localFallback), 'selfData:', JSON.stringify(selfData));
-  if (!selfInFriends && selfData && selfData.bestScore > 0) {
-    friends.push({
-      openId: 'self',
-      nickname: '我',
-      avatarUrl: selfAvatarUrl,
-      bestScore: selfData.bestScore,
-      isMe: true
-    });
-  }
+  console.log('[OpenData] selfInFriends:', selfInFriends, 'friends:', friends.length);
 
   sortAndRender();
 }
@@ -321,12 +305,8 @@ function render() {
   for (var i = 0; i < displayList.length; i++) {
     var rowY = listTop + i * rowH - scrollOffset;
     if (rowY + rowH < listTop || rowY > listBottom) continue;
-    // 计算真实排名（排序后的 index）
-    var realRank = -1;
-    for (var j = 0; j < friends.length; j++) {
-      if (friends[j].openId === displayList[i].openId) { realRank = j + 1; break; }
-    }
-    drawFriendRow(displayList[i], realRank - 1, px + 8, rowY, pw - 16, rowH);
+    // displayList = friends.slice(0,10)，同引用同顺序，直接用 i 做排名
+    drawFriendRow(displayList[i], i, px + 8, rowY, pw - 16, rowH);
   }
 
   ctx.restore();

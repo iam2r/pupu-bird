@@ -53,6 +53,7 @@ var gameCanvas = null;
 var userAvatarUrl = '';
 var avatarEnabled = false;
 var avatarImg = null;
+var rankManager = null;
 
 // ==================== 辅助函数 ====================
 
@@ -71,18 +72,30 @@ function buildSaveData() {
 function uploadToCloud() {
   var now = Math.floor(Date.now() / 1000);
   console.log('[Leaderboard] 上传: rankingBest=' + rankingBest);
+
+  // 1. 官方排行榜上报（mp后台配置激活需要）
+  if (rankManager) {
+    try {
+      rankManager.update({ scoreList: [{ score: rankingBest }] });
+      console.log('[Leaderboard] rankManager.update 已调用');
+    } catch(e) {
+      console.log('[Leaderboard] rankManager.update 失败:', e);
+    }
+  }
+
+  // 2. 关系链KV（开放数据域自渲染用）
   wx.setUserCloudStorage({
     KVDataList: [
       { key: 'bestScore', value: JSON.stringify({ wxgame: { score: rankingBest, update_time: now } }) }
     ],
     success: function() {
-      console.log('[Leaderboard] 上传成功');
+      console.log('[Leaderboard] setUserCloudStorage 成功');
       if (showingLeaderboard) {
         try { wx.getOpenDataContext().postMessage({ type: 'refresh' }); } catch(e) {}
       }
     },
     fail: function(err) {
-      console.log('[Leaderboard] 上传失败:', JSON.stringify(err));
+      console.log('[Leaderboard] setUserCloudStorage 失败:', JSON.stringify(err));
     }
   });
 }
@@ -97,10 +110,7 @@ function showLeaderboardOverlay() {
       type: 'show',
       W: si.windowWidth,
       H: si.windowHeight,
-      dpr: si.pixelRatio || 1,
-      // 本地数据兜底：云存储查不到时用
-      localBestScore: rankingBest,
-      selfAvatarUrl: userAvatarUrl || ''
+      dpr: si.pixelRatio || 1
     });
   } catch(e) {}
 }
@@ -402,6 +412,9 @@ function init(canvas, ctx, params) {
   points = data.points;
   avatarEnabled = data.avatarEnabled || false;
   rankingBest = data.rankingBest || 0;
+
+  // 官方排行榜
+  try { rankManager = wx.getRankManager(); } catch(e) { rankManager = null; }
 
   isDailyChallenge = false;
   Memorial.ensureMemorialCanvas();
