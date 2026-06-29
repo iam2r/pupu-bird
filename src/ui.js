@@ -931,14 +931,15 @@ function drawChargeBar(ctx, chargeRatio, theme, birdY) {
 // ==================== 调试面板（DEBUG 模式） ====================
 function drawDebugButton(ctx) {
   if (!C.DEBUG) return;
-  var r = 18, cx = C.W - r - 12, cy = C.H - r - 12;
+  var btnW = 56, btnH = 28, bx = C.W - btnW - 10, by = C.H - btnH - 10;
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  C.roundRect(ctx, bx, by, btnW, btnH, 14);
+  ctx.fill();
   ctx.fillStyle = '#fff';
-  ctx.font = 'bold 13px sans-serif';
+  ctx.font = 'bold 11px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('调', cx, cy + 13 * 0.35);
+  ctx.fillText('Debug', bx + btnW / 2, by + btnH / 2 + 11 * 0.35);
   ctx.textAlign = 'left';
 }
 
@@ -968,9 +969,9 @@ function drawDebugPanel(ctx) {
 
 function hitTestDebug(tx, ty, paneling) {
   if (!C.DEBUG) return null;
-  var r = 18, cx = C.W - r - 12, cy = C.H - r - 12;
-  if (Math.sqrt((tx - cx) * (tx - cx) + (ty - cy) * (ty - cy)) < r + 6) {
-    return paneling === 'debug' ? { action: 'closeDebug' } : { action: 'openDebug' };
+  var btnW = 56, btnH = 28, bx = C.W - btnW - 10, by = C.H - btnH - 10;
+  if (tx >= bx - 6 && tx <= bx + btnW + 6 && ty >= by - 6 && ty <= by + btnH + 6) {
+    return { action: 'openDebug' };
   }
   if (paneling !== 'debug') return null;
   var pw = 220, ph = 230, px = (C.W - pw) / 2, py = (C.H - ph) / 2;

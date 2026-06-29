@@ -484,8 +484,11 @@ function onTouch(e) {
   if (state === C.STATE.MENU) {
     var dbg = UI.hitTestDebug(tx, ty, paneling);
     if (dbg) {
-      if (dbg.action === 'openDebug') { paneling = 'debug'; return; }
-      if (dbg.action === 'closeDebug') { paneling = null; return; }
+      if (dbg.action === 'openDebug') { paneling = 'debug'; panelJustOpened = true; return; }
+      if (dbg.action === 'closeDebug') { 
+        if (panelJustOpened) { panelJustOpened = false; return; }
+        paneling = null; return; 
+      }
       if (dbg.action === 'add5') { points += 5; Storage.savePoints(points); return; }
       if (dbg.action === 'add50') { points += 50; Storage.savePoints(points); return; }
       if (dbg.action === 'clear') {
