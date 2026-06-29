@@ -199,7 +199,8 @@ function saveToAlbum() {
     wx.showToast({ title: '生成失败', icon: 'none' });
     return;
   }
-  memorialCanvas.toTempFilePath({
+  wx.canvasToTempFilePath({
+    canvas: memorialCanvas,
     success: function(res) {
       _shareImagePath = res.tempFilePath;
       wx.saveImageToPhotosAlbum({
