@@ -573,7 +573,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.globalAlpha = 1;
 
   // 标题
-  C.drawText(ctx, '🕊️ 飞行纪念', C.W / 2, cardY + 36, 18, t.textPri, true);
+  C.drawText(ctx, '飞行纪念', C.W / 2, cardY + 36, 18, t.textPri, true);
 
   // 小鸟
   var birdCY = cardY + cardH * 0.38, bigR = C.BIRD_SIZE * 2.2;

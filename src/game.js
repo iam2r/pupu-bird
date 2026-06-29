@@ -137,7 +137,7 @@ function die() {
   }
   if (anyNew) {
     Storage.saveData(buildSaveData());
-    wx.showToast({ title: '🎉 解锁新主题！', icon: 'none', duration: 2000 });
+    wx.showToast({ title: '解锁新主题！', icon: 'none', duration: 2000 });
   }
 
   // 积分 +1
@@ -378,7 +378,7 @@ function draw(ctx) {
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('🔥 x' + chargeMultiplier, C.W / 2, indicatorY + 15 * 0.35);
+      ctx.fillText('x' + chargeMultiplier, C.W / 2, indicatorY + 15 * 0.35);
       ctx.restore();
       indicatorY += 18;
     }
@@ -390,7 +390,7 @@ function draw(ctx) {
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('⭐ 无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, indicatorY + 15 * 0.35);
+      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, indicatorY + 15 * 0.35);
       ctx.restore();
       indicatorY += 18;
     }
@@ -401,7 +401,7 @@ function draw(ctx) {
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('⭐x' + combo, C.W / 2, indicatorY + 15 * 0.35);
+      ctx.fillText('x' + combo, C.W / 2, indicatorY + 15 * 0.35);
       ctx.restore();
     }
   } else if (state === C.STATE.DEAD) {

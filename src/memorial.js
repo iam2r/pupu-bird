@@ -84,7 +84,7 @@ function renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, 
   ctx.font = 'bold 36px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('🕊️ 飞行纪念', cw / 2, 210 + 36 * 0.35);
+  ctx.fillText('飞行纪念', cw / 2, 210 + 36 * 0.35);
 
   // 小鸟插图（大号）
   var birdCX = cw / 2, birdCY = 380, bigR = 70;

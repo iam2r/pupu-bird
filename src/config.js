@@ -7,7 +7,7 @@ var DEBUG = true;
 
 var THEMES = {
   sakura: {
-    name: '樱花粉', emoji: '🌸',
+    name: '樱花粉',
     sky:      ['#FDE4EC','#FEF0EB','#F2E4F6','#D8E8F4'],
     ground:   '#FEF5E7', grass: '#B8DDC8',
     bird:     '#FFB3B3', birdWing: '#F09898', birdBeak: '#FFB347', birdBlush: '#FFD4D4',
@@ -22,7 +22,7 @@ var THEMES = {
     unlock:   0
   },
   starry: {
-    name: '星空紫', emoji: '✨',
+    name: '星空紫',
     sky:      ['#E8E0F0','#EDE8F5','#D8D0E8','#C0C8E8'],
     ground:   '#F5F0FA', grass: '#C8C0D8',
     bird:     '#C8B8E8', birdWing: '#A898C8', birdBeak: '#E8C878', birdBlush: '#E0D0F0',
@@ -37,7 +37,7 @@ var THEMES = {
     unlock:   15
   },
   ocean: {
-    name: '海洋蓝', emoji: '🌊',
+    name: '海洋蓝',
     sky:      ['#D8ECF4','#E0F0F8','#C8E0F0','#B8D8F0'],
     ground:   '#F0F8FC', grass: '#B8D8D8',
     bird:     '#88C8D8', birdWing: '#68A8B8', birdBeak: '#F0C878', birdBlush: '#B0E0E8',
@@ -52,7 +52,7 @@ var THEMES = {
     unlock:   25
   },
   forest: {
-    name: '森林绿', emoji: '🌿',
+    name: '森林绿',
     sky:      ['#E8F5E0','#D8EDD0','#E0F0D8','#D0E4C8'],
     ground:   '#F5FAF0', grass: '#A0C890',
     bird:     '#78B868', birdWing: '#58A048', birdBeak: '#F0C878', birdBlush: '#B0D8A0',
@@ -67,7 +67,7 @@ var THEMES = {
     unlock:   30
   },
   sunset: {
-    name: '日落橙', emoji: '🌅',
+    name: '日落橙',
     sky:      ['#FEF0E8','#FDE4D4','#F8D8C4','#F2CCB8'],
     ground:   '#FEF8F0', grass: '#D8C0A0',
     bird:     '#F0A878', birdWing: '#E09060', birdBeak: '#F0C878', birdBlush: '#F8C8B0',
@@ -82,7 +82,7 @@ var THEMES = {
     unlock:   40
   },
   lavender: {
-    name: '薰衣草紫', emoji: '💜',
+    name: '薰衣草紫',
     sky:      ['#F4ECFA','#EDE0F6','#E4D4F0','#D8C8E8'],
     ground:   '#F8F4FC', grass: '#C8B8D8',
     bird:     '#C4A8E0', birdWing: '#A888C8', birdBeak: '#F0C878', birdBlush: '#DCC8F0',
@@ -97,7 +97,7 @@ var THEMES = {
     unlock:   50
   },
   mint: {
-    name: '薄荷绿', emoji: '🍃',
+    name: '薄荷绿',
     sky:      ['#EAF8F2','#DEF4E8','#D2F0E0','#C2E8D6'],
     ground:   '#F4FCF8', grass: '#A0D4B8',
     bird:     '#68C8A0', birdWing: '#48B088', birdBeak: '#F0C878', birdBlush: '#A0E8C8',
@@ -112,7 +112,7 @@ var THEMES = {
     unlock:   60
   },
   coral: {
-    name: '珊瑚色', emoji: '🪸',
+    name: '珊瑚色',
     sky:      ['#FEF0EC','#FDE4DE','#F8D8D0','#F2CCC4'],
     ground:   '#FEF6F4', grass: '#D8B8A8',
     bird:     '#F08878', birdWing: '#E07058', birdBeak: '#F0C878', birdBlush: '#F8B8A8',
@@ -127,7 +127,7 @@ var THEMES = {
     unlock:   70
   },
   midnight: {
-    name: '午夜蓝', emoji: '🌙',
+    name: '午夜蓝',
     sky:      ['#1A1A2E','#162138','#0F2C50','#1A1A3E'],
     ground:   '#1E1E32', grass: '#2A2A48',
     bird:     '#5B8BD4', birdWing: '#4A7AB8', birdBeak: '#E8C878', birdBlush: '#7AA0E0',
@@ -142,7 +142,7 @@ var THEMES = {
     unlock:   80
   },
   rose: {
-    name: '玫瑰金', emoji: '🌹',
+    name: '玫瑰金',
     sky:      ['#FEF0F0','#FDE8E4','#F8DCD4','#F2D0C8'],
     ground:   '#FEF8F4', grass: '#D8C0B0',
     bird:     '#E8A898', birdWing: '#D08878', birdBeak: '#F0C878', birdBlush: '#F0C8B8',
@@ -160,7 +160,7 @@ var THEMES = {
 
 // ==================== 配饰系统 ====================
 var ACCESSORIES = {
-  none:       { name: '素颜', emoji: '🐤', cost: 0 },
+  none:       { name: '素颜', cost: 0 },
   hat:        { name: '小帽子', color1: '#FFB3B3', color2: '#F09898', cost: 5 },
   bow:        { name: '蝴蝶结', color1: '#FF88A8', color2: '#FF6088', cost: 5 },
   glasses:    { name: '小墨镜', color1: '#3A2A3A', color2: '#555555', cost: 5 },
@@ -175,14 +175,14 @@ var ACC_KEYS = ['none', 'hat', 'bow', 'glasses', 'ribbon', 'flower', 'headphones
 
 // ==================== 纪念卡文案 ====================
 var MEMORIAL_MSGS = [
-  '每一次飞翔\n都是勇气的绽放 🌸',
-  '即使坠落\n也曾在天空留下轨迹 ✨',
-  '小小的翅膀\n承载着大大的梦想 💕',
-  '飞过的路\n开满了花 🌷',
-  '下一段旅程\n会更美好 🌟',
-  '跌倒也没关系\n温柔地抱抱自己 🎀',
-  '天空记得\n你来过的痕迹 ☁️',
-  '翅膀虽小\n心向远方 🕊️'
+  '每一次飞翔\n都是勇气的绽放 ',
+  '即使坠落\n也曾在天空留下轨迹 ',
+  '小小的翅膀\n承载着大大的梦想 ',
+  '飞过的路\n开满了花 ',
+  '下一段旅程\n会更美好 ',
+  '跌倒也没关系\n温柔地抱抱自己 ',
+  '天空记得\n你来过的痕迹 ',
+  '翅膀虽小\n心向远方 '
 ];
 
 // ==================== 游戏状态枚举 ====================
