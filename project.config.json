@@ -1,0 +1,24 @@
+{
+  "miniprogramRoot": "",
+  "compileType": "game",
+  "appid": "wx27e5d31f13a04817",
+  "projectname": "噗噗鸟",
+  "setting": {
+    "es6": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "libVersion": "3.16.1",
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "condition": {},
+  "editorSetting": {
+    "tabIndent": "insertSpaces",
+    "tabSize": 2
+  }
+}

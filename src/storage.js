@@ -1,0 +1,72 @@
+// storage.js — 微信存储封装
+// 依赖: config.js（读取 THEMES 取默认值）、wx API
+
+var C = require('./config.js');
+
+function loadData() {
+  var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points;
+  try {
+    var raw = wx.getStorageSync('flappy_data');
+    if (raw) {
+      var d = JSON.parse(raw);
+      best = d.best || 0;
+      currentTheme = d.theme || 'sakura';
+      currentAccessory = d.accessory || 'none';
+      unlockedThemes = d.unlockedThemes || { sakura: true, starry: false, ocean: false };
+      unlockedAccessories = d.unlockedAccessories || { none: true };
+      dailyDate = d.dailyDate || '';
+      dailyBest = d.dailyBest || 0;
+    } else {
+      best = 0;
+      currentTheme = 'sakura';
+      currentAccessory = 'none';
+      unlockedThemes = { sakura: true, starry: false, ocean: false };
+      unlockedAccessories = { none: true };
+      dailyDate = '';
+      dailyBest = 0;
+    }
+  } catch(e) {
+    best = 0; currentTheme = 'sakura'; currentAccessory = 'none';
+    unlockedThemes = { sakura: true, starry: false, ocean: false };
+    unlockedAccessories = { none: true };
+    dailyDate = ''; dailyBest = 0;
+  }
+  points = wx.getStorageSync('flappy_points') || 0;
+
+  // 检查每日挑战日期
+  var today = C.getTodayStr();
+  if (dailyDate !== today) { dailyDate = today; dailyBest = 0; }
+
+  return {
+    best: best,
+    currentTheme: currentTheme,
+    currentAccessory: currentAccessory,
+    unlockedThemes: unlockedThemes,
+    unlockedAccessories: unlockedAccessories,
+    dailyDate: dailyDate,
+    dailyBest: dailyBest,
+    points: points
+  };
+}
+
+function saveData(data) {
+  try {
+    wx.setStorageSync('flappy_data', JSON.stringify({
+      best: data.best,
+      theme: data.currentTheme,
+      accessory: data.currentAccessory,
+      unlockedThemes: data.unlockedThemes,
+      unlockedAccessories: data.unlockedAccessories,
+      dailyDate: data.dailyDate,
+      dailyBest: data.dailyBest
+    }));
+  } catch(e) {}
+}
+
+function savePoints(points) {
+  try {
+    wx.setStorageSync('flappy_points', points);
+  } catch(e) {}
+}
+
+module.exports = { loadData: loadData, saveData: saveData, savePoints: savePoints };
