@@ -261,7 +261,7 @@ function drawThemePanel(ctx, t, stateData) {
     }
 
     // 主题名
-    C.drawTextLeft(ctx, th.emoji + ' ' + th.name, px + 26, rowY + rowH / 2, 12, t.textPri, false);
+    C.drawTextLeft(ctx, th.name, px + 26, rowY + rowH / 2, 12, t.textPri, false);
 
     // 色块预览
     var swCX = px + pw * 0.55, swCY = rowY + rowH / 2;
