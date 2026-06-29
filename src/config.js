@@ -212,7 +212,7 @@ function setLayout(si) {
   exp.GAME_H = exp.GAME_BOTTOM - exp.GAME_TOP;
   exp.PIPE_WIDTH = exp.W * 0.075;
   exp.PIPE_GAP = exp.H * 0.17;
-  exp.PIPE_SPACING = exp.W * 0.52;
+  exp.PIPE_SPACING = exp.W * 0.58;
   exp.BIRD_SIZE = exp.W * 0.064;
   exp.BIRD_X = exp.W * 0.28;
 
