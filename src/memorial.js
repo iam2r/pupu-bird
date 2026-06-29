@@ -199,29 +199,40 @@ function saveToAlbum() {
     wx.showToast({ title: '生成失败', icon: 'none' });
     return;
   }
-  wx.canvasToTempFilePath({
-    canvas: memorialCanvas,
-    success: function(res) {
-      _shareImagePath = res.tempFilePath;
-      wx.saveImageToPhotosAlbum({
-        filePath: res.tempFilePath,
-        success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
-        fail: function(err) {
-          console.log('save fail:', JSON.stringify(err));
-          if (err && err.errMsg && (err.errMsg.indexOf('auth') >= 0 || err.errMsg.indexOf('permission') >= 0 || err.errMsg.indexOf('deny') >= 0)) {
-            wx.showModal({
-              title: '需要相册权限',
-              content: '请允许噗噗鸟访问相册以保存纪念卡',
-              success: function(mr) { if (mr.confirm) wx.openSetting({}); }
-            });
-          } else {
-            wx.showToast({ title: '保存失败: ' + (err.errMsg || '未知'), icon: 'none' });
-          }
+  // 兼容新旧 API
+  if (memorialCanvas.toTempFilePath) {
+    memorialCanvas.toTempFilePath({
+      success: doSave,
+      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    });
+  } else if (wx.canvasToTempFilePath) {
+    wx.canvasToTempFilePath({
+      canvas: memorialCanvas,
+      success: doSave,
+      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    });
+  } else {
+    wx.showToast({ title: '当前版本不支持', icon: 'none' });
+  }
+  function doSave(res) {
+    _shareImagePath = res.tempFilePath;
+    wx.saveImageToPhotosAlbum({
+      filePath: res.tempFilePath,
+      success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
+      fail: function(err) {
+        console.log('save fail:', JSON.stringify(err));
+        if (err && err.errMsg && (err.errMsg.indexOf('auth') >= 0 || err.errMsg.indexOf('permission') >= 0 || err.errMsg.indexOf('deny') >= 0)) {
+          wx.showModal({
+            title: '需要相册权限',
+            content: '请允许噗噗鸟访问相册以保存纪念卡',
+            success: function(mr) { if (mr.confirm) wx.openSetting({}); }
+          });
+        } else {
+          wx.showToast({ title: '保存失败: ' + (err.errMsg || '未知'), icon: 'none' });
         }
-      });
-    },
-    fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
-  });
+      }
+    });
+  }
 }
 
 function getShareImagePath() { return _shareImagePath; }
