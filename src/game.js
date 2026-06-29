@@ -417,6 +417,17 @@ function init(canvas, ctx, params) {
   // 官方排行榜
   try { rankManager = wx.getRankManager(); } catch(e) { rankManager = null; }
 
+  // 朋友圈分享：小游戏不能主动调起，需通过右上角 ··· 菜单
+  try {
+    wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
+    wx.onShareTimeline(function() {
+      return {
+        title: '噗噗鸟 · 治愈飞行日记',
+        imageUrl: Memorial.getShareImagePath() || ''
+      };
+    });
+  } catch(e) {}
+
   isDailyChallenge = false;
   Memorial.ensureMemorialCanvas();
   // 如果之前开启了头像模式，静默拉取头像（已授权则成功，未授权则无声失败）
@@ -718,8 +729,7 @@ function onTouch(e) {
       Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
       Memorial.shareMemorialCard();
     } else if (mAct.action === 'shareTimeline') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
-      Memorial.shareTimeline();
+      wx.showToast({ title: '请点击右上角 ··· → 分享到朋友圈', icon: 'none', duration: 2000 });
     } else if (mAct.action === 'shareImage') {
       Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
       Memorial.shareImage();

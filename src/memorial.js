@@ -271,7 +271,12 @@ function shareImage() {
 }
 
 function shareTimeline() {
-  if (_shareImagePath && wx.shareTimeline) {
+  console.log('[Memorial] shareTimeline 调用, wx.shareTimeline存在:', !!wx.shareTimeline, 'path:', _shareImagePath);
+  if (!wx.shareTimeline) {
+    wx.showToast({ title: '当前微信版本不支持朋友圈分享', icon: 'none' });
+    return;
+  }
+  if (_shareImagePath) {
     wx.shareTimeline({
       title: '噗噗鸟 · 治愈飞行日记',
       imageUrl: _shareImagePath,
@@ -283,13 +288,11 @@ function shareTimeline() {
     memorialCanvas.toTempFilePath({
       success: function(res) {
         _shareImagePath = res.tempFilePath;
-        if (wx.shareTimeline) {
-          wx.shareTimeline({
-            title: '噗噗鸟 · 治愈飞行日记',
-            imageUrl: res.tempFilePath,
-            query: 'from=timeline'
-          });
-        }
+        wx.shareTimeline({
+          title: '噗噗鸟 · 治愈飞行日记',
+          imageUrl: res.tempFilePath,
+          query: 'from=timeline'
+        });
       },
       fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
     });

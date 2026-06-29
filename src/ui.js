@@ -764,7 +764,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.stroke();
   C.drawText(ctx, '朋友圈', timelineBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.textPri, true);
 
-  // 转发图片（含保存相册功能）
+  // 转发图片（含保存相册）
   var saveBtnX = btnRowX + (btnW + btnSpacing) * 2;
   ctx.fillStyle = t.accent;
   C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
@@ -967,7 +967,7 @@ function hitTestMemorial(tx, ty, userAvatarUrl) {
     return { action: 'shareCard' };
   }
 
-  // 朋友圈
+  // 朋友圈（引导用 ··· 菜单）
   var timelineBtnX = btnRowX + btnW + btnSpacing;
   if (tx >= timelineBtnX && tx <= timelineBtnX + btnW &&
       ty >= btnAreaY && ty <= btnAreaY + btnH) {
