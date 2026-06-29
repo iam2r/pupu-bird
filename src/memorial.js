@@ -15,7 +15,9 @@ function ensureMemorialCanvas() {
     memorialCanvas.width = 750;
     memorialCanvas.height = 1100;
     memorialCtx = memorialCanvas.getContext('2d');
+    console.log('memorial canvas created:', !!memorialCtx);
   } catch(e) {
+    console.error('memorial canvas failed:', e);
     memorialCanvas = null;
     memorialCtx = null;
   }
@@ -173,6 +175,7 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
 
 // 保存/分享纪念卡
 function saveMemorialCard() {
+  console.log('saveMemorialCard called, canvas:', !!memorialCanvas);
   if (!memorialCanvas) {
     wx.showToast({ title: '保存功能暂不可用', icon: 'none' });
     return;
