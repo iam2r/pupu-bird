@@ -12,7 +12,7 @@ var Sound = require('./sound.js');
 var Star = require('./star.js');
 
 // ---- 游戏运行时状态 ----
-var state, birdY, birdVY, pipes, score, best;
+var state, birdY, birdVY, pipes, score, best, pipesPassed;
 var medalLevel, shakeTimer;
 var onExit;
 
@@ -64,6 +64,7 @@ function gotoMenu() {
   petals = [];
   stars = [];
   score = 0;
+  pipesPassed = 0;
   combo = 0;
   chargeMultiplier = 1;
   chargeBoostTimer = 0;
@@ -81,6 +82,7 @@ function startGame() {
   petals = [];
   stars = [];
   score = 0;
+  pipesPassed = 0;
   combo = 0;
   isCharging = false;
   chargeRatio = 0;
@@ -151,7 +153,7 @@ function die() {
   }
 
   // 预渲染纪念卡
-  Memorial.renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
 }
 
 function restartGame() {
@@ -162,6 +164,7 @@ function restartGame() {
   petals = [];
   stars = [];
   score = 0;
+  pipesPassed = 0;
   combo = 0;
   isCharging = false;
   chargeRatio = 0;
@@ -257,6 +260,7 @@ function update(dt) {
     p.x -= scroll;
     if (Pipe.hasPassedPipe(p, C.BIRD_X)) {
       p.passed = true;
+      pipesPassed++;
       score += 1 * chargeMultiplier;
       chargeMultiplier = 1;
       chargeBoostTimer = 0;
@@ -447,7 +451,7 @@ function onTouch(e) {
   if (state === C.STATE.MEMORIAL) {
     var mAct = UI.hitTestMemorial(tx, ty);
     if (mAct.action === 'saveCard') {
-      Memorial.renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
       Memorial.saveMemorialCard();
     } else if (mAct.action === 'replay') {
       restartGame();

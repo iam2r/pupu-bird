@@ -90,9 +90,10 @@ function drawStartScreen(ctx, t, stateData) {
   var titleY = C.GAME_TOP + 40;
   C.drawText(ctx, '噗噗鸟', C.W / 2, titleY, 24, t.textPri, true);
 
-  // ---- 副标题 ----
+  // ---- 副标题（两行规则说明） ----
   var subY = titleY + 28;
-  C.drawText(ctx, '按住蓄力 · 收集星星', C.W / 2, subY, 12, t.textSec, false);
+  C.drawText(ctx, '轻按跳跃 穿越管道', C.W / 2, subY, 12, t.textSec, false);
+  C.drawText(ctx, '按住蓄力 收集星星', C.W / 2, subY + 18, 12, t.textSec, false);
 
   // ---- 积分（返回按钮下方：钻石图形 + 数字） ----
   var diamondCX = 30, diamondCY = C.SAFE_TOP + 44;

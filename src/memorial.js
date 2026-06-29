@@ -26,7 +26,7 @@ function getMemorialCanvas() {
 
 // 渲染纪念卡到离屏 Canvas
 // drawAcc(ctx, cx, cy, r, t, accKey) — 由 game.js 传入 bird.drawAccessoryOnCtx
-function renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, drawAcc) {
+function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, drawAcc) {
   ensureMemorialCanvas();
   if (!memorialCtx) return;
 
@@ -116,13 +116,18 @@ function renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, 
   ctx.font = 'bold 72px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(score.toString(), cw / 2, 510 + 72 * 0.35);
+  ctx.fillText(score.toString(), cw / 2, 500 + 72 * 0.35);
 
-  // 分数标签
+  // 管道数
   ctx.fillStyle = t.textSec;
   ctx.font = 'bold 18px sans-serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('飞行得分', cw / 2, 555 + 18 * 0.35);
+  ctx.fillText(pipesPassed + ' 根管道', cw / 2, 540 + 18 * 0.35);
+
+  // 效率
+  var efficiency = pipesPassed > 0 ? (score / pipesPassed).toFixed(1) : '0';
+  ctx.font = '14px sans-serif';
+  ctx.fillText('均分 ' + efficiency + '/管', cw / 2, 565 + 14 * 0.35);
 
   // 分隔
   ctx.fillStyle = t.accent;
