@@ -345,11 +345,12 @@ function drawFriendRow(friend, index, x, y, w, h) {
   if (nickname.length > 6) nickname = nickname.substring(0, 5) + '…';
   ctx.fillText(nickname, nameX, y + h / 2);
 
-  // 复合分（右对齐）
+  // 复合分（右对齐，两位小数）
+  var displayScore = (friend.bestScore / 100).toFixed(2);
   ctx.fillStyle = '#FF6B6B';
   ctx.font = 'bold 15px sans-serif';
   ctx.textAlign = 'right';
-  ctx.fillText('' + friend.bestScore, x + w - 8, y + h / 2);
+  ctx.fillText(displayScore, x + w - 8, y + h / 2);
 }
 
 // ==================== Canvas 辅助函数 ====================

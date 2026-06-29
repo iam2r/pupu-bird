@@ -229,8 +229,9 @@ function die() {
 
   // 计算排行榜复合分 & 上传云存储
   if (score > 0) {
-    // 复合分 = 得分 + 得分/管道数（同时奖励高分和高效率）
-    var composite = score + Math.floor(score / Math.max(pipesPassed, 1));
+    // 复合分 = score*100 + floor(score/pipesPassed)
+    // 前段是主排序（1分=100），末2位是效率tiebreaker（管道均分）
+    var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
     if (composite > rankingBest) {
       rankingBest = composite;
       Storage.saveData(buildSaveData());
