@@ -206,16 +206,15 @@ function saveToAlbum() {
         filePath: res.tempFilePath,
         success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
         fail: function(err) {
-          if (err.errMsg && err.errMsg.indexOf('auth deny') >= 0) {
+          console.log('save fail:', JSON.stringify(err));
+          if (err && err.errMsg && (err.errMsg.indexOf('auth') >= 0 || err.errMsg.indexOf('permission') >= 0 || err.errMsg.indexOf('deny') >= 0)) {
             wx.showModal({
               title: '需要相册权限',
               content: '请允许噗噗鸟访问相册以保存纪念卡',
-              success: function(modalRes) {
-                if (modalRes.confirm) wx.openSetting({});
-              }
+              success: function(mr) { if (mr.confirm) wx.openSetting({}); }
             });
           } else {
-            wx.showToast({ title: '保存失败，请重试', icon: 'none' });
+            wx.showToast({ title: '保存失败: ' + (err.errMsg || '未知'), icon: 'none' });
           }
         }
       });
