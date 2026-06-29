@@ -344,6 +344,8 @@ function draw(ctx) {
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
+    if (paneling === 'debug') UI.drawDebugPanel(ctx);
+    UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
     // 无敌光环（金→红递减警告）
     if (invincibleTimer > 0) {
@@ -476,6 +478,32 @@ function onTouch(e) {
       restartGame();
     }
     return;
+  }
+
+  // 调试面板（MENU 下优先处理）
+  if (state === C.STATE.MENU) {
+    var dbg = UI.hitTestDebug(tx, ty, paneling);
+    if (dbg) {
+      if (dbg.action === 'openDebug') { paneling = 'debug'; return; }
+      if (dbg.action === 'closeDebug') { paneling = null; return; }
+      if (dbg.action === 'add5') { points += 5; Storage.savePoints(points); return; }
+      if (dbg.action === 'add50') { points += 50; Storage.savePoints(points); return; }
+      if (dbg.action === 'clear') {
+        wx.clearStorageSync();
+        var data = Storage.loadData();
+        best = data.best; currentTheme = data.currentTheme; currentAccessory = data.currentAccessory;
+        unlockedThemes = data.unlockedThemes; unlockedAccessories = data.unlockedAccessories;
+        points = data.points;
+        return;
+      }
+      if (dbg.action === 'unlockAll') {
+        var tk = Object.keys(C.THEMES);
+        for (var ti = 0; ti < tk.length; ti++) unlockedThemes[tk[ti]] = true;
+        for (var ai = 0; ai < C.ACC_KEYS.length; ai++) unlockedAccessories[C.ACC_KEYS[ai]] = true;
+        Storage.saveData(buildSaveData());
+        return;
+      }
+    }
   }
 
   // 面板内交互委托给 UI 模块

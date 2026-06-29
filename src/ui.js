@@ -163,13 +163,6 @@ function drawStartScreen(ctx, t, stateData) {
   Bird.drawAccessoryOnCtx(ctx, 0, 0, mr, t, currentAccessory);
   ctx.restore();
 
-  // DEBUG 右上角小按钮
-  if (C.DEBUG) {
-    var dbgX = C.W - 40, dbgY = C.H - 40, dbgR = 13;
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath(); ctx.arc(dbgX, dbgY, dbgR, 0, Math.PI*2); ctx.fill();
-    C.drawText(ctx, '+', dbgX, dbgY, 14, '#fff', true);
-  }
 
   // ---- Start 按钮（跟随主题色，带阴影+描边） ----
   var startBtnW = 140, startBtnH = 40;
@@ -717,14 +710,6 @@ function hitTestMenu(tx, ty, stateData) {
   var totalW = circleR * 2 + spacing + circleR * 2;
   var startX = (C.W - totalW) / 2;
 
-  // 0. DEBUG 积分按钮
-  if (C.DEBUG) {
-    var dbgX = C.W - 40, dbgY = C.H - 40, dbgR = 13;
-    if (Math.sqrt((tx-dbgX)*(tx-dbgX)+(ty-dbgY)*(ty-dbgY)) < dbgR + 4) {
-      return { action: 'debug', points: (stateData.points || 0) + 5 };
-    }
-  }
-
   // 1. 主题按钮 → 打开主题面板
   var btn1CX = startX + circleR;
   if (Math.sqrt((tx-btn1CX)*(tx-btn1CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
@@ -737,17 +722,7 @@ function hitTestMenu(tx, ty, stateData) {
     return { action: 'openPanel', panel: 'accessory' };
   }
 
-  // DEBUG: 点击积分钻石区域加5分
-  if (C.DEBUG) {
-    var diamondCX = 30, diamondCY = C.SAFE_TOP + 44;
-    var dw = 7;
-    if (tx >= diamondCX - dw - 4 && tx <= diamondCX + dw + 60 &&
-        ty >= diamondCY - 10 && ty <= diamondCY + 10) {
-      return { action: 'debug', points: (stateData.points || 0) + 5 };
-    }
-  }
-
-  // 5. Start 按钮（btnRowY + 50，140x40 矩形检测）
+  // 3. Start 按钮（btnRowY + 50，140x40 矩形检测）
   var startBtnW = 140, startBtnH = 40;
   var startBtnX = (C.W - startBtnW) / 2;
   var startBtnCY = btnRowY + 50;
@@ -953,6 +928,60 @@ function drawChargeBar(ctx, chargeRatio, theme, birdY) {
   }
 }
 
+// ==================== 调试面板（DEBUG 模式） ====================
+function drawDebugButton(ctx) {
+  if (!C.DEBUG) return;
+  var r = 18, cx = C.W - r - 12, cy = C.H - r - 12;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('调', cx, cy + 13 * 0.35);
+  ctx.textAlign = 'left';
+}
+
+function drawDebugPanel(ctx) {
+  if (!C.DEBUG) return;
+  var pw = 220, ph = 230, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, C.W, C.H);
+  ctx.fillStyle = '#fff';
+  C.roundRect(ctx, px, py, pw, ph, 16);
+  ctx.fill();
+
+  var items = ['+5 Points', '+50 Points', 'Clear Data', 'Unlock All', 'Close'];
+  for (var i = 0; i < items.length; i++) {
+    var iy = py + 24 + i * 42;
+    ctx.fillStyle = '#eee';
+    C.roundRect(ctx, px + 16, iy, pw - 32, 34, 8);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(items[i], px + pw / 2, iy + 22 + 14 * 0.35);
+  }
+  ctx.textAlign = 'left';
+}
+
+function hitTestDebug(tx, ty, paneling) {
+  if (!C.DEBUG) return null;
+  var r = 18, cx = C.W - r - 12, cy = C.H - r - 12;
+  if (Math.sqrt((tx - cx) * (tx - cx) + (ty - cy) * (ty - cy)) < r + 6) {
+    return paneling === 'debug' ? { action: 'closeDebug' } : { action: 'openDebug' };
+  }
+  if (paneling !== 'debug') return null;
+  var pw = 220, ph = 230, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeDebug' };
+  var relY = ty - py - 24;
+  var idx = Math.floor(relY / 42);
+  var actions = ['add5', 'add50', 'clear', 'unlockAll', 'closeDebug'];
+  if (idx >= 0 && idx < actions.length) return { action: actions[idx] };
+  return null;
+}
+
 module.exports = {
   drawBackButton: drawBackButton,
   drawSky: drawSky,
@@ -964,10 +993,13 @@ module.exports = {
   drawAccessoryPanel: drawAccessoryPanel,
   drawGameOverPanel: drawGameOverPanel,
   drawMemorialScreen: drawMemorialScreen,
+  drawDebugButton: drawDebugButton,
+  drawDebugPanel: drawDebugPanel,
   hitBackButton: hitBackButton,
   hitTestMenu: hitTestMenu,
   hitTestGameOver: hitTestGameOver,
   hitTestMemorial: hitTestMemorial,
+  hitTestDebug: hitTestDebug,
   resetPanelState: resetPanelState,
   handlePanelTouch: handlePanelTouch
 };
