@@ -27,7 +27,7 @@ var stars = [];
 // ---- 连击 & 倍率 ----
 var combo = 0;
 var chargeMultiplier = 1;
-var chargeBoostTimer = 0;
+var multiBurstTime = 0;
 var invincibleTimer = 0;
 
 // ---- 主题 & 配饰 ----
@@ -73,7 +73,7 @@ function gotoMenu() {
   pipesPassed = 0;
   combo = 0;
   chargeMultiplier = 1;
-  chargeBoostTimer = 0;
+  multiBurstTime = 0;
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
@@ -94,7 +94,7 @@ function startGame() {
   chargeRatio = 0;
   chargeWasFull = false;
   chargeMultiplier = 1;
-  chargeBoostTimer = 0;
+  multiBurstTime = 0;
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
@@ -117,7 +117,7 @@ function die() {
   chargeRatio = 0;
   chargeWasFull = false;
   chargeMultiplier = 1;
-  chargeBoostTimer = 0;
+  multiBurstTime = 0;
   invincibleTimer = 0;
   Sound.playDie();
 
@@ -187,7 +187,7 @@ function restartGame() {
   chargeRatio = 0;
   chargeWasFull = false;
   chargeMultiplier = 1;
-  chargeBoostTimer = 0;
+  multiBurstTime = 0;
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
@@ -515,12 +515,26 @@ function draw(ctx) {
     // 倍率标在鸟上方
     if (chargeMultiplier > 1) {
       ctx.save();
+      // 持续呼吸脉动（和能量涟漪同风格）
+      var pulse = 1 + 0.1 * Math.sin(Date.now() * 0.008);
+      // 升级爆发（0.5秒内叠加额外膨胀）
+      var burst = 0;
+      if (multiBurstTime) {
+        var elapsed = (Date.now() - multiBurstTime) / 1000;
+        if (elapsed < 0.5) {
+          burst = (1 - elapsed / 0.5) * 0.5 * Math.sin(elapsed * Math.PI * 4);
+        }
+      }
+      var scale = pulse + burst;
+      ctx.translate(C.BIRD_X, birdY - C.BIRD_SIZE * 0.8);
+      ctx.scale(scale, scale);
+      // 爆发时变金色
       ctx.globalAlpha = 0.85;
-      ctx.fillStyle = '#FF6600';
+      ctx.fillStyle = burst > 0.1 ? '#FFD700' : '#FF6600';
       ctx.font = 'bold 18px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('x' + chargeMultiplier, C.BIRD_X, birdY - C.BIRD_SIZE * 0.8 + 18 * 0.35);
+      ctx.fillText('x' + chargeMultiplier, 0, 0);
       ctx.restore();
     }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
@@ -743,7 +757,11 @@ function onTouch(e) {
     if (isCharging) {
       var ratio = chargeRatio < 0.4 ? 0 : chargeRatio;
       var vel = C.CHARGE_MIN_VELOCITY + (C.CHARGE_MAX_VELOCITY - C.CHARGE_MIN_VELOCITY) * ratio;
-      if (ratio > 0) { chargeMultiplier = Math.min(5, chargeMultiplier + Math.floor(ratio * 4)); }
+      if (ratio > 0) {
+        var newMulti = Math.min(5, chargeMultiplier + Math.floor(ratio * 4));
+        if (newMulti > chargeMultiplier) multiBurstTime = Date.now();
+        chargeMultiplier = newMulti;
+      }
       flap(vel);
       Sound.stopCharge(ratio);
       isCharging = false;
