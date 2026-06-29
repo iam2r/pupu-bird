@@ -199,18 +199,13 @@ function saveToAlbum() {
     wx.showToast({ title: '生成失败', icon: 'none' });
     return;
   }
-  // 兼容新旧 API
+  // 兼容新旧 canvas API，带尺寸参数
+  var genOpts = { x: 0, y: 0, width: 750, height: 1100, success: doSave, fail: function(e) { console.log('gen fail:', JSON.stringify(e)); wx.showToast({ title: '生成图片失败', icon: 'none' }); } };
   if (memorialCanvas.toTempFilePath) {
-    memorialCanvas.toTempFilePath({
-      success: doSave,
-      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
-    });
+    memorialCanvas.toTempFilePath(genOpts);
   } else if (wx.canvasToTempFilePath) {
-    wx.canvasToTempFilePath({
-      canvas: memorialCanvas,
-      success: doSave,
-      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
-    });
+    genOpts.canvas = memorialCanvas;
+    wx.canvasToTempFilePath(genOpts);
   } else {
     wx.showToast({ title: '当前版本不支持', icon: 'none' });
   }
@@ -218,17 +213,17 @@ function saveToAlbum() {
     _shareImagePath = res.tempFilePath;
     wx.saveImageToPhotosAlbum({
       filePath: res.tempFilePath,
-      success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
+      success: function() { wx.showToast({ title: '已保存到相册', icon: 'success' }); },
       fail: function(err) {
-        console.log('save fail:', JSON.stringify(err));
-        if (err && err.errMsg && (err.errMsg.indexOf('auth') >= 0 || err.errMsg.indexOf('permission') >= 0 || err.errMsg.indexOf('deny') >= 0)) {
+        var msg = err ? (err.errMsg || '') : '';
+        if (msg.indexOf('auth deny') > -1 || msg.indexOf('auth denied') > -1 || msg.indexOf('auth') > -1) {
           wx.showModal({
             title: '需要相册权限',
-            content: '请允许噗噗鸟访问相册以保存纪念卡',
+            content: '请在设置中允许相册权限',
             success: function(mr) { if (mr.confirm) wx.openSetting({}); }
           });
         } else {
-          wx.showToast({ title: '保存失败: ' + (err.errMsg || '未知'), icon: 'none' });
+          wx.showToast({ title: '保存失败: ' + msg, icon: 'none' });
         }
       }
     });
