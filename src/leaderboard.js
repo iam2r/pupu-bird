@@ -26,45 +26,7 @@ function uploadBest(score, pipesPassed) {
   });
 }
 
-// 获取排行榜数据（含自己的排名）
-function fetchRankList(callback) {
-  if (!wx.getFriendCloudStorage) {
-    console.log('getFriendCloudStorage not available (dev tools limitation)');
-    callback([]);
-    return;
-  }
-  wx.getFriendCloudStorage({
-    keyList: ['rank_val', 'score', 'pipes', 'eff', 'update_time'],
-    success: function(res) {
-      var list = (res.data || []).map(function(item) {
-        var kv = {};
-        (item.KVDataList || []).forEach(function(d) { kv[d.key] = d.value; });
-        return {
-          openid: item.openid || '',
-          nickname: item.nickname || '微信用户',
-          avatarUrl: item.avatarUrl || '',
-          rankVal: parseInt(kv.rank_val) || 0,
-          score: parseInt(kv.score) || 0,
-          pipes: parseInt(kv.pipes) || 0,
-          eff: kv.eff || '0',
-          time: parseInt(kv.update_time) || 0
-        };
-      });
-      list.sort(function(a, b) { return b.rankVal - a.rankVal; });
-      for (var i = 0; i < list.length; i++) {
-        list[i].rank = i + 1;
-      }
-      callback(list);
-    },
-    fail: function(e) {
-      console.log('fetch rank fail:', e);
-      callback([]);
-    }
-  });
-}
-
 module.exports = {
   calcRankValue: calcRankValue,
-  uploadBest: uploadBest,
-  fetchRankList: fetchRankList
+  uploadBest: uploadBest
 };

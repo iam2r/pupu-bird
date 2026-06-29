@@ -37,8 +37,6 @@ var currentTheme, currentAccessory, unlockedThemes;
 var unlockedAccessories = {};
 var paneling = null;
 var panelJustOpened = false;
-var rankList = [];
-var rankLoading = false;
 
 // ---- 花瓣粒子 ----
 var petals = [];
@@ -104,6 +102,7 @@ function startGame() {
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
+  if (module.exports.setLeaderboardOpen) module.exports.setLeaderboardOpen(false);
   gameJustStarted = true;
   state = C.STATE.PLAYING;
 }
@@ -199,6 +198,7 @@ function restartGame() {
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
+  if (module.exports.setLeaderboardOpen) module.exports.setLeaderboardOpen(false);
   gameJustStarted = true;
   state = C.STATE.PLAYING;
 }
@@ -495,7 +495,6 @@ function draw(ctx) {
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
-    if (paneling === 'leaderboard') UI.drawLeaderboardPanel(ctx, t, { rankList: rankList, rankLoading: rankLoading });
     if (paneling === 'debug') UI.drawDebugPanel(ctx);
     UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
@@ -684,10 +683,15 @@ function onTouch(e) {
     }
   }
 
-  // 排行榜面板交互
-  if (paneling === 'leaderboard' && state === C.STATE.MENU) {
-    var lbAct = UI.hitTestLeaderboard(tx, ty);
-    if (lbAct && lbAct.action === 'closePanel') { paneling = null; }
+  // 排行榜面板（开放数据域渲染，主域只负责关闭）
+  if (paneling === 'leaderboard') {
+    // 面板外点击关闭
+    var lbPW = C.W * 0.88, lbPH = C.H * 0.6;
+    var lbPX = (C.W - lbPW) / 2, lbPY = (C.H - lbPH) / 2;
+    if (tx < lbPX - 10 || tx > lbPX + lbPW + 10 || ty < lbPY - 10 || ty > lbPY + lbPH + 10) {
+      if (module.exports.setLeaderboardOpen) module.exports.setLeaderboardOpen(false);
+      paneling = null;
+    }
     return;
   }
 
@@ -730,12 +734,7 @@ function onTouch(e) {
       paneling = mAct.panel;
       panelJustOpened = true;
       if (mAct.panel === 'leaderboard') {
-        rankLoading = true;
-        rankList = [];
-        Leaderboard.fetchRankList(function(list) {
-          rankList = list;
-          rankLoading = false;
-        });
+        if (module.exports.setLeaderboardOpen) module.exports.setLeaderboardOpen(true);
       }
     } else if (mAct.action === 'debug') {
       points = mAct.points;

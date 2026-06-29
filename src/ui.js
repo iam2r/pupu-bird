@@ -5,6 +5,11 @@ var C = require('./config.js');
 var Bird = require('./bird.js');
 var Particles = require('./particles.js');
 
+// hex 颜色转 rgba
+function _alphaHex(hex, a) {
+  return 'rgba(' + parseInt(hex.slice(1,3),16) + ',' + parseInt(hex.slice(3,5),16) + ',' + parseInt(hex.slice(5,7),16) + ',' + a + ')';
+}
+
 // ==================== 面板触摸状态（内聚管理） ====================
 var _panelState = {
   scroll: 0,
@@ -152,14 +157,14 @@ function drawStartScreen(ctx, t, stateData) {
   var spacing = 10;
   var totalW = circleR * 2 * 4 + spacing * 3;
   var startX = (C.W - totalW) / 2;
-  var pinkFill = 'rgba(255,179,179,0.22)';
-  var pinkBorder = 'rgba(255,159,143,0.55)';
+  var btnFill = _alphaHex(t.accent, 0.15);
+  var btnBorder = _alphaHex(t.accent, 0.45);
 
   // 1. 主题按钮 — Canvas色块圆圈（bird色填充 + accent色描边）
   var btn1CX = startX + circleR;
   var isThemeLocked = !unlockedThemes[currentTheme];
   // 外圈边框
-  ctx.strokeStyle = pinkBorder;
+  ctx.strokeStyle = btnBorder;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   // 内圈色块
@@ -181,9 +186,9 @@ function drawStartScreen(ctx, t, stateData) {
 
   // 2. 头像按钮 — 微信头像 / 人物图标（居中，最显眼）
   var btn2CX = startX + circleR * 3 + spacing;
-  ctx.fillStyle = avatarEnabled ? 'rgba(255,200,180,0.35)' : pinkFill;
+  ctx.fillStyle = avatarEnabled ? 'rgba(255,200,180,0.35)' : btnFill;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = avatarEnabled ? t.accent : pinkBorder;
+  ctx.strokeStyle = avatarEnabled ? t.accent : btnBorder;
   ctx.lineWidth = avatarEnabled ? 2 : 1;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   if (avatarEnabled && avatarImg && avatarImg.width > 0) {
@@ -209,9 +214,9 @@ function drawStartScreen(ctx, t, stateData) {
 
   // 3. 排行榜按钮 — 粉色底圆 + 柱状图标
   var btn3CX = startX + circleR * 5 + spacing * 2;
-  ctx.fillStyle = pinkFill;
+  ctx.fillStyle = btnFill;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = pinkBorder;
+  ctx.strokeStyle = btnBorder;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = '#D5C0C0';
@@ -224,9 +229,9 @@ function drawStartScreen(ctx, t, stateData) {
 
   // 4. 配饰按钮 — 粉色底圆 + 微型小鸟戴配饰
   var btn4CX = startX + circleR * 7 + spacing * 3;
-  ctx.fillStyle = pinkFill;
+  ctx.fillStyle = btnFill;
   ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = pinkBorder;
+  ctx.strokeStyle = btnBorder;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   var mr = 10, bx = btn4CX, by = btnRowY;
@@ -1113,119 +1118,6 @@ function hitTestDebug(tx, ty, paneling) {
   return null;
 }
 
-// ==================== 排行榜面板 ====================
-function drawLeaderboardPanel(ctx, t, stateData) {
-  var rankList = stateData.rankList || [];
-  var loading = stateData.rankLoading;
-
-  // 半透明遮罩
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
-  ctx.fillRect(0, 0, C.W, C.H);
-
-  var pw = C.W * 0.88, ph = C.H * 0.6;
-  var px = (C.W - pw) / 2, py = (C.H - ph) / 2;
-
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
-  C.roundRect(ctx, px + 2, py + 3, pw, ph, 18);
-  ctx.fill();
-  ctx.fillStyle = '#FFFFFF';
-  C.roundRect(ctx, px, py, pw, ph, 18);
-  ctx.fill();
-
-  C.drawText(ctx, '好友排行', px + pw / 2, py + 28, 15, t.textPri, true);
-
-  // 关闭
-  var closeCX = px + pw - 22, closeCY = py + 18;
-  ctx.fillStyle = 'rgba(0,0,0,0.07)';
-  ctx.beginPath(); ctx.arc(closeCX, closeCY, 12, 0, Math.PI * 2); ctx.fill();
-  C.drawText(ctx, '✕', closeCX, closeCY, 13, '#999', true);
-
-  // 表头
-  var hY = py + 52;
-  ctx.fillStyle = t.textSec;
-  ctx.font = '10px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('排名', px + 24, hY);
-  ctx.textAlign = 'center';
-  ctx.fillText('玩家', px + pw * 0.4, hY);
-  ctx.fillText('分数', px + pw * 0.65, hY);
-  ctx.fillText('均分', px + pw * 0.82, hY);
-  ctx.textAlign = 'left';
-
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  ctx.lineWidth = 0.5;
-  ctx.beginPath();
-  ctx.moveTo(px + 20, hY + 8);
-  ctx.lineTo(px + pw - 20, hY + 8);
-  ctx.stroke();
-
-  if (loading) {
-    C.drawText(ctx, '加载中...', px + pw / 2, py + ph / 2, 13, t.textSec, true);
-  } else if (rankList.length === 0) {
-    C.drawText(ctx, '暂无排行数据', px + pw / 2, py + ph / 2, 13, t.textSec, true);
-    C.drawText(ctx, '游玩一局后上传成绩', px + pw / 2, py + ph / 2 + 22, 11, t.textSec, true);
-  } else {
-    var rowH = 36;
-    var listTop = hY + 16;
-    var maxRows = Math.min(rankList.length, 12);
-    for (var ri = 0; ri < maxRows; ri++) {
-      var item = rankList[ri];
-      var rowY = listTop + ri * rowH;
-      var isSelf = item.isSelf;
-
-      if (isSelf) {
-        ctx.fillStyle = 'rgba(255,179,179,0.15)';
-        C.roundRect(ctx, px + 10, rowY, pw - 20, rowH - 2, 8);
-        ctx.fill();
-      }
-
-      // 排名
-      ctx.fillStyle = isSelf ? t.accent : t.textSec;
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText('#' + item.rank, px + 24, rowY + rowH / 2 + 4);
-
-      // 昵称（截断）
-      ctx.fillStyle = isSelf ? t.textPri : '#666666';
-      ctx.font = (isSelf ? 'bold ' : '') + '11px sans-serif';
-      ctx.textAlign = 'center';
-      var nick = item.nickname || '微信用户';
-      if (nick.length > 6) nick = nick.substring(0, 5) + '…';
-      ctx.fillText(nick, px + pw * 0.4, rowY + rowH / 2 + 4);
-
-      // 分数
-      ctx.fillStyle = isSelf ? t.accent : t.textPri;
-      ctx.font = 'bold 13px sans-serif';
-      ctx.fillText(item.score, px + pw * 0.65, rowY + rowH / 2 + 4);
-
-      // 均分
-      ctx.fillStyle = t.textSec;
-      ctx.font = '10px sans-serif';
-      ctx.fillText(item.eff || '-', px + pw * 0.82, rowY + rowH / 2 + 4);
-    }
-    ctx.textAlign = 'left';
-  }
-
-  ctx.textAlign = 'left';
-}
-
-// 排行榜面板命中检测
-function hitTestLeaderboard(tx, ty) {
-  var pw = C.W * 0.88;
-  var py = (C.H - C.H * 0.6) / 2;
-  var px = (C.W - pw) / 2;
-  // 关闭按钮
-  var closeCX = px + pw - 22, closeCY = py + 18;
-  if (Math.sqrt((tx - closeCX) * (tx - closeCX) + (ty - closeCY) * (ty - closeCY)) < 16) {
-    return { action: 'closePanel' };
-  }
-  // 面板外
-  if (tx < px - 10 || tx > px + pw + 10 || ty < py - 10 || ty > py + C.H * 0.6 + 10) {
-    return { action: 'closePanel' };
-  }
-  return null;
-}
-
 module.exports = {
   drawBackButton: drawBackButton,
   drawSky: drawSky,
@@ -1235,7 +1127,6 @@ module.exports = {
   drawStartScreen: drawStartScreen,
   drawThemePanel: drawThemePanel,
   drawAccessoryPanel: drawAccessoryPanel,
-  drawLeaderboardPanel: drawLeaderboardPanel,
   drawGameOverPanel: drawGameOverPanel,
   drawMemorialScreen: drawMemorialScreen,
   drawDebugButton: drawDebugButton,
@@ -1244,7 +1135,6 @@ module.exports = {
   hitTestMenu: hitTestMenu,
   hitTestGameOver: hitTestGameOver,
   hitTestMemorial: hitTestMemorial,
-  hitTestLeaderboard: hitTestLeaderboard,
   hitTestDebug: hitTestDebug,
   resetPanelState: resetPanelState,
   handlePanelTouch: handlePanelTouch

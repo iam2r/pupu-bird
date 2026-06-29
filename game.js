@@ -14,6 +14,18 @@ ctx.scale(dpr, dpr);
 var lastTime = 0;
 game.init(canvas, ctx, {});
 
+// 开放数据域（排行榜 sharedCanvas）
+var openDataCtx = wx.getOpenDataContext ? wx.getOpenDataContext() : null;
+var leaderboardOpen = false;
+game.setLeaderboardOpen = function(open) {
+  leaderboardOpen = open;
+  if (open) {
+    if (openDataCtx) openDataCtx.postMessage({ action: 'refresh' });
+  } else {
+    if (openDataCtx) openDataCtx.postMessage({ action: 'hide' });
+  }
+};
+
 // 隐私授权处理
 if (wx.onNeedPrivacyAuthorization) {
   wx.onNeedPrivacyAuthorization(function(resolve) {
@@ -42,6 +54,10 @@ function loop(now) {
   game.update(dt);
   ctx.clearRect(0, 0, W, H);
   game.draw(ctx);
+  // 排行榜 sharedCanvas 叠加在最上层
+  if (leaderboardOpen && openDataCtx && openDataCtx.canvas) {
+    ctx.drawImage(openDataCtx.canvas, 0, 0, W, H);
+  }
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
