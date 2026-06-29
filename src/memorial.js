@@ -122,7 +122,7 @@ function renderMemorialCard(score, currentTheme, currentAccessory, memorialMsg, 
   ctx.fillStyle = t.textSec;
   ctx.font = 'bold 18px sans-serif';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText('飞越管道数', cw / 2, 555 + 18 * 0.35);
+  ctx.fillText('飞行得分', cw / 2, 555 + 18 * 0.35);
 
   // 分隔
   ctx.fillStyle = t.accent;
