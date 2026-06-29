@@ -206,7 +206,8 @@ function saveToAlbum() {
         filePath: res.tempFilePath,
         success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
         fail: function(err) {
-          if (err.errMsg && err.errMsg.indexOf('auth deny') >= 0) {
+          console.log('saveImageToPhotosAlbum fail:', JSON.stringify(err));
+          if (err.errMsg && err.errMsg.indexOf('auth') >= 0) {
             wx.showModal({
               title: '需要相册权限',
               content: '请允许噗噗鸟访问相册以保存纪念卡',
