@@ -144,8 +144,10 @@ function processAndRender(rawFriends, my) {
     if (bestScore > 0) {
       var isMe = my && bestScore === my.bestScore;
       if (isMe) selfInFriends = true;
+      // openId 可能为空，用 avatarUrl 兜底做缓存key
+      var cacheKey = f.openId || f.avatarUrl || 'unknown';
       friends.push({
-        openId: f.openId || '',
+        cacheKey: cacheKey,
         nickname: f.nickname || '微信用户',
         avatarUrl: f.avatarUrl || '',
         bestScore: bestScore,
@@ -201,27 +203,28 @@ function preloadAvatars() {
   }
   for (var i = 0; i < list.length; i++) {
     var f = list[i];
-    if (f.avatarUrl && !avatarCache[f.openId] && !avatarLoaded[f.openId]) {
-      avatarLoaded[f.openId] = true;
-      loadAvatar(f.openId, f.avatarUrl);
+    var key = f.cacheKey || f.avatarUrl || '';
+    if (f.avatarUrl && !avatarCache[key] && !avatarLoaded[key]) {
+      avatarLoaded[key] = true;
+      loadAvatar(key, f.avatarUrl);
     }
   }
 }
 
-function loadAvatar(openId, url) {
+function loadAvatar(cacheKey, url) {
   try {
     var img = wx.createImage();
     img.onload = function() {
-      avatarCache[openId] = img;
+      avatarCache[cacheKey] = img;
       if (visible) render();
     };
     img.onerror = function() {
-      avatarCache[openId] = null;
+      avatarCache[cacheKey] = null;
       if (visible) render();
     };
     img.src = url;
   } catch(e) {
-    avatarCache[openId] = null;
+    avatarCache[cacheKey] = null;
   }
 }
 
@@ -406,7 +409,7 @@ function drawFriendRow(friend, index, x, y, w, h) {
   var avatarX = x + 36;
   var avatarY = y + (h - 36) / 2;
   var avatarR = 18;
-  var img = avatarCache[friend.openId];
+  var img = avatarCache[friend.cacheKey];
 
   ctx.save();
   ctx.beginPath();
@@ -424,13 +427,19 @@ function drawFriendRow(friend, index, x, y, w, h) {
   // 昵称
   var nameX = avatarX + avatarR * 2 + 10;
   ctx.fillStyle = '#333333';
-  ctx.font = '14px sans-serif';
+  ctx.font = '13px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
 
   // 截断过长昵称
   var nickname = friend.nickname;
-  if (nickname.length > 6) nickname = nickname.substring(0, 5) + '…';
+  var maxWidth = x + w - 70; // 给右侧分数留够空间
+  if (ctx.measureText(nickname).width > maxWidth) {
+    while (nickname.length > 2 && ctx.measureText(nickname + '…').width > maxWidth) {
+      nickname = nickname.substring(0, nickname.length - 1);
+    }
+    nickname += '…';
+  }
   ctx.fillText(nickname, nameX, y + h / 2);
 
   // 复合分（右对齐，两位小数）
