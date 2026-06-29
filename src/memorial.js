@@ -209,42 +209,25 @@ function saveToAlbum(canvas) {
   function onTempFile(res) {
     var fp = res.tempFilePath;
     _shareImagePath = fp;
-    // Step 2: 隐私授权检查
-    var checkThenSave = function() {
-      wx.getSetting({
-        success: function(s) {
-          if (s.authSetting['scope.writePhotosAlbum']) {
-            doSave(fp);
-          } else {
-            wx.authorize({
-              scope: 'scope.writePhotosAlbum',
-              success: function() { doSave(fp); },
-              fail: function() {
-                wx.showModal({
-                  title: '需要相册权限',
-                  content: '请在设置中允许相册权限',
-                  confirmText: '去设置',
-                  success: function(mr) {
-                    if (mr.confirm) {
-                      wx.openSetting({
-                        success: function(sr) {
-                          if (sr.authSetting['scope.writePhotosAlbum']) doSave(fp);
-                          else wx.showToast({ title: '未开启相册权限', icon: 'none' });
-                        }
-                      });
-                    }
-                  }
-                });
-              }
-            });
-          }
+    // Step 2: 隐私授权
+    var tryAuth = function() {
+      wx.authorize({
+        scope: 'scope.writePhotosAlbum',
+        success: function() { doSave(fp); },
+        fail: function() {
+          wx.openSetting({
+            success: function(sr) {
+              if (sr.authSetting['scope.writePhotosAlbum']) doSave(fp);
+              else wx.showToast({ title: '请在设置中开启相册权限', icon: 'none' });
+            }
+          });
         }
       });
     };
     if (wx.requirePrivacyAuthorize) {
-      wx.requirePrivacyAuthorize({ success: checkThenSave, fail: checkThenSave });
+      wx.requirePrivacyAuthorize({ success: tryAuth, fail: tryAuth });
     } else {
-      checkThenSave();
+      tryAuth();
     }
   }
   function doSave(fp) {
