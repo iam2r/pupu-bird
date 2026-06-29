@@ -544,6 +544,7 @@ function drawGameOverPanel(ctx, t, stateData) {
 // ==================== 纪念卡画面 ====================
 function drawMemorialScreen(ctx, t, stateData) {
   var score = stateData.score;
+  var pipesPassed = stateData.pipesPassed || 0;
   var currentAccessory = stateData.currentAccessory;
   var memorialMsg = stateData.memorialMsg;
   var petals = stateData.petals;
@@ -580,10 +581,12 @@ function drawMemorialScreen(ctx, t, stateData) {
   var birdCY = cardY + cardH * 0.38, bigR = C.BIRD_SIZE * 2.2;
   Bird.drawLogoBird(ctx, C.W / 2, birdCY, bigR, t, currentAccessory, 0);
 
-  // 分数
-  var scoreAreaY = cardY + cardH * 0.64;
-  C.drawText(ctx, score.toString(), C.W / 2, scoreAreaY, 38, t.textPri, true);
-  C.drawText(ctx, '飞越管道数', C.W / 2, scoreAreaY + 34, 11, t.textSec, false);
+  // 分数 + 管道双数据
+  var scoreAreaY = cardY + cardH * 0.62;
+  C.drawText(ctx, score.toString(), C.W / 2, scoreAreaY, 40, t.textPri, true);
+  C.drawText(ctx, pipesPassed + ' 根管道', C.W / 2, scoreAreaY + 32, 12, t.textSec, false);
+  var eff = pipesPassed > 0 ? (score / pipesPassed).toFixed(1) : '0';
+  C.drawText(ctx, '均分 ' + eff + '/管', C.W / 2, scoreAreaY + 48, 11, t.textSec, false);
 
   // 寄语
   var msgY = cardY + cardH * 0.82;

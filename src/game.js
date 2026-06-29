@@ -401,19 +401,16 @@ function draw(ctx) {
       var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
       var cSize = Math.floor(comboSize * cPop);
       var cx = C.W / 2, cy = C.GAME_TOP + 135;
-      // 阴影/描边（深色底层，偏移 1.5px 画两次）
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      // 柔和光晕
+      ctx.shadowColor = comboColor;
+      ctx.shadowBlur = 12;
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = comboColor;
       ctx.font = 'bold ' + cSize + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText(comboText, cx + 1.5, cy);
-      ctx.fillText(comboText, cx - 1.5, cy);
-      ctx.fillText(comboText, cx, cy + 1.5);
-      ctx.fillText(comboText, cx, cy - 1.5);
-      // 主文字
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = comboColor;
       ctx.fillText(comboText, cx, cy);
+      ctx.shadowBlur = 0;
       // 小字 xN
       ctx.globalAlpha = 0.6;
       ctx.font = 'bold 16px sans-serif';
@@ -434,6 +431,7 @@ function draw(ctx) {
   } else if (state === C.STATE.MEMORIAL) {
     UI.drawMemorialScreen(ctx, t, {
       score: score,
+      pipesPassed: pipesPassed,
       currentAccessory: currentAccessory,
       memorialMsg: memorialMsg,
       petals: petals
