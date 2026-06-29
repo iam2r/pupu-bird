@@ -733,11 +733,13 @@ function drawMemorialScreen(ctx, t, stateData) {
 
   // 按钮区域
   var btnAreaY = cardY + cardH + 10;
-  var btnW = C.W * 0.34, btnH = 40;
-  var btnSpacing = C.W * 0.04;
+  var btnW = C.W * 0.29, btnH = 38;
+  var btnSpacing = C.W * 0.025;
+  var totalBtnW = btnW * 3 + btnSpacing * 2;
+  var btnRowX = (C.W - totalBtnW) / 2;
 
-  // 分享好友按钮
-  var shareBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
+  // 分享好友
+  var shareBtnX = btnRowX;
   ctx.fillStyle = t.accent;
   ctx.globalAlpha = 0.15;
   C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
@@ -747,24 +749,36 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.lineWidth = 1;
   C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
   ctx.stroke();
-  C.drawText(ctx, '分享好友', shareBtnX + btnW / 2, btnAreaY + btnH / 2, 13, t.textPri, true);
+  C.drawText(ctx, '分享好友', shareBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.textPri, true);
 
-  // 保存相册按钮
-  var saveBtnX = shareBtnX + btnW + btnSpacing;
+  // 朋友圈
+  var timelineBtnX = btnRowX + btnW + btnSpacing;
+  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.15;
+  C.roundRect(ctx, timelineBtnX, btnAreaY, btnW, btnH, 20);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = t.accent;
+  ctx.lineWidth = 1;
+  C.roundRect(ctx, timelineBtnX, btnAreaY, btnW, btnH, 20);
+  ctx.stroke();
+  C.drawText(ctx, '朋友圈', timelineBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.textPri, true);
+
+  // 转发图片（含保存相册功能）
+  var saveBtnX = btnRowX + (btnW + btnSpacing) * 2;
   ctx.fillStyle = t.accent;
   C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
-  C.drawText(ctx, '保存相册', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 13, '#fff', true);
+  C.drawText(ctx, '转发图片', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 12, '#fff', true);
 
-  // 再来一次按钮
-  var replayBtnX = (C.W - btnW) / 2;
+  // 再来一次
+  var replayBtnW = C.W * 0.5, replayBtnH = 42;
+  var replayBtnX = (C.W - replayBtnW) / 2;
   btnAreaY = btnAreaY + btnH + 10;
   ctx.fillStyle = t.accent;
-  C.roundRect(ctx, replayBtnX, btnAreaY, btnW, btnH, 20);
+  C.roundRect(ctx, replayBtnX, btnAreaY, replayBtnW, replayBtnH, 20);
   ctx.fill();
-  C.roundRect(ctx, replayBtnX, btnAreaY, btnW, btnH, 20);
-  ctx.fill();
-  C.drawText(ctx, '再来一次', replayBtnX + btnW / 2, btnAreaY + btnH / 2, 15, '#FFFFFF', true);
+  C.drawText(ctx, '再来一次', replayBtnX + replayBtnW / 2, btnAreaY + replayBtnH / 2, 15, '#FFFFFF', true);
 
   ctx.textAlign = 'left';
 
@@ -941,28 +955,38 @@ function hitTestMemorial(tx, ty, userAvatarUrl) {
   }
 
   var btnAreaY = cardY + cardH + 10;
-  var btnW = C.W * 0.34, btnH = 40;
-  var btnSpacing = C.W * 0.04;
+  var btnW = C.W * 0.29, btnH = 38;
+  var btnSpacing = C.W * 0.025;
+  var totalBtnW = btnW * 3 + btnSpacing * 2;
+  var btnRowX = (C.W - totalBtnW) / 2;
 
-  // 分享好友按钮
-  var shareBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
+  // 分享好友
+  var shareBtnX = btnRowX;
   if (tx >= shareBtnX && tx <= shareBtnX + btnW &&
       ty >= btnAreaY && ty <= btnAreaY + btnH) {
     return { action: 'shareCard' };
   }
 
-  // 保存相册按钮
-  var saveBtnX = shareBtnX + btnW + btnSpacing;
-  if (tx >= saveBtnX && tx <= saveBtnX + btnW &&
+  // 朋友圈
+  var timelineBtnX = btnRowX + btnW + btnSpacing;
+  if (tx >= timelineBtnX && tx <= timelineBtnX + btnW &&
       ty >= btnAreaY && ty <= btnAreaY + btnH) {
-    return { action: 'saveToAlbum' };
+    return { action: 'shareTimeline' };
   }
 
-  // 再来一次按钮（单独一行居中）
-  var replayBtnX = (C.W - btnW) / 2;
+  // 转发图片
+  var saveBtnX = btnRowX + (btnW + btnSpacing) * 2;
+  if (tx >= saveBtnX && tx <= saveBtnX + btnW &&
+      ty >= btnAreaY && ty <= btnAreaY + btnH) {
+    return { action: 'shareImage' };
+  }
+
+  // 再来一次
+  var replayBtnW = C.W * 0.5, replayBtnH = 42;
+  var replayBtnX = (C.W - replayBtnW) / 2;
   var replayY = btnAreaY + btnH + 10;
-  if (tx >= replayBtnX && tx <= replayBtnX + btnW &&
-      ty >= replayY && ty <= replayY + btnH) {
+  if (tx >= replayBtnX && tx <= replayBtnX + replayBtnW &&
+      ty >= replayY && ty <= replayY + replayBtnH) {
     return { action: 'replay' };
   }
 

@@ -12,11 +12,15 @@ var avatarImage = null;
 function ensureMemorialCanvas() {
   if (memorialCanvas) return;
   try {
+    var dpr = 1;
+    try { dpr = wx.getSystemInfoSync().pixelRatio || 1; } catch(e) {}
+    dpr = Math.min(dpr, 2); // 最高2x，避免超大画布
     memorialCanvas = wx.createCanvas();
-    memorialCanvas.width = 750;
-    memorialCanvas.height = 1100;
+    memorialCanvas.width = 750 * dpr;
+    memorialCanvas.height = 1100 * dpr;
     memorialCtx = memorialCanvas.getContext('2d');
-    console.log('memorial canvas created:', !!memorialCtx);
+    memorialCtx.scale(dpr, dpr);
+    console.log('memorial canvas:', 750*dpr, 'x', 1100*dpr, 'dpr:', dpr);
   } catch(e) {
     console.error('memorial canvas failed:', e);
     memorialCanvas = null;
@@ -216,22 +220,80 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
 // 保存/分享纪念卡
 var _shareImagePath = '';
 
-function shareMemorialCard() {
-  if (!memorialCanvas) {
-    wx.showToast({ title: '生成失败', icon: 'none' });
-    return;
-  }
+// 提前生成分享图路径（die时调用，确保分享时路径已就绪）
+function prepareShareImage(cb) {
+  if (!memorialCanvas) return;
   memorialCanvas.toTempFilePath({
+    x: 0, y: 0,
+    width: memorialCanvas.width,
+    height: memorialCanvas.height,
     success: function(res) {
       _shareImagePath = res.tempFilePath;
-      if (wx.showShareImageMenu) {
-        wx.showShareImageMenu({ path: res.tempFilePath });
-      } else if (wx.shareAppMessage) {
-        wx.shareAppMessage({ title: '来挑战我的噗噗鸟记录！', imageUrl: res.tempFilePath });
-      }
+      if (cb) cb(res.tempFilePath);
     },
-    fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    fail: function() {}
   });
+}
+
+function shareMemorialCard() {
+  var fp = _shareImagePath;
+  if (!fp && memorialCanvas) {
+    // 无预生成路径，现场生成（理论上不会到这里，prepareShareImage 已提前调用）
+    memorialCanvas.toTempFilePath({
+      success: function(res) { _shareImagePath = res.tempFilePath; doShareAppMsg(res.tempFilePath); },
+      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    });
+    return;
+  }
+  if (!fp) { wx.showToast({ title: '生成失败', icon: 'none' }); return; }
+  doShareAppMsg(fp);
+}
+
+function doShareAppMsg(fp) {
+  wx.shareAppMessage({
+    title: '来挑战我的噗噗鸟记录！',
+    imageUrl: fp,
+    query: 'from=share'
+  });
+}
+
+function shareImage() {
+  var fp = _shareImagePath;
+  if (!fp && memorialCanvas) {
+    memorialCanvas.toTempFilePath({
+      success: function(res) { _shareImagePath = res.tempFilePath; wx.showShareImageMenu({ path: res.tempFilePath }); },
+      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    });
+    return;
+  }
+  if (!fp) { wx.showToast({ title: '生成失败', icon: 'none' }); return; }
+  wx.showShareImageMenu({ path: fp });
+}
+
+function shareTimeline() {
+  if (_shareImagePath && wx.shareTimeline) {
+    wx.shareTimeline({
+      title: '噗噗鸟 · 治愈飞行日记',
+      imageUrl: _shareImagePath,
+      query: 'from=timeline'
+    });
+  } else if (!memorialCanvas) {
+    wx.showToast({ title: '生成失败', icon: 'none' });
+  } else {
+    memorialCanvas.toTempFilePath({
+      success: function(res) {
+        _shareImagePath = res.tempFilePath;
+        if (wx.shareTimeline) {
+          wx.shareTimeline({
+            title: '噗噗鸟 · 治愈飞行日记',
+            imageUrl: res.tempFilePath,
+            query: 'from=timeline'
+          });
+        }
+      },
+      fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+    });
+  }
 }
 
 function saveToAlbum(canvas) {
@@ -320,7 +382,10 @@ module.exports = {
   ensureMemorialCanvas: ensureMemorialCanvas,
   getMemorialCanvas: getMemorialCanvas,
   renderMemorialCard: renderMemorialCard,
+  prepareShareImage: prepareShareImage,
   shareMemorialCard: shareMemorialCard,
+  shareTimeline: shareTimeline,
+  shareImage: shareImage,
   saveToAlbum: saveToAlbum,
   getShareImagePath: getShareImagePath,
   prefetchMemorialImagePath: prefetchMemorialImagePath,

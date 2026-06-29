@@ -234,8 +234,9 @@ function die() {
     score += bonus;
   }
 
-  // 预渲染纪念卡
+  // 预渲染纪念卡 + 提前生成分享图
   Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+  Memorial.prepareShareImage();
 
   // 计算排行榜复合分 & 上传云存储
   if (score > 0) {
@@ -716,9 +717,12 @@ function onTouch(e) {
     } else if (mAct.action === 'shareCard') {
       Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
       Memorial.shareMemorialCard();
-    } else if (mAct.action === 'saveToAlbum') {
+    } else if (mAct.action === 'shareTimeline') {
       Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
-      Memorial.saveToAlbum();
+      Memorial.shareTimeline();
+    } else if (mAct.action === 'shareImage') {
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+      Memorial.shareImage();
     } else if (mAct.action === 'replay') {
       restartGame();
     }
