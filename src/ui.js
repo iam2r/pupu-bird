@@ -215,9 +215,10 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   ctx.fillStyle = '#D5C0C0';
-  for (var bi2 = 0; bi2 < 3; bi2++) {
-    var bh2 = [5, 9, 4][bi2];
-    ctx.fillRect(btn3CX - 4 + bi2 * 5, btnRowY + 4 - bh2, 3, bh2);
+  var barW = 3, barGap = 2, barH = [5, 9, 4];
+  var totalBarW = barW * 3 + barGap * 2;
+  for (var bi = 0; bi < 3; bi++) {
+    ctx.fillRect(btn3CX - totalBarW / 2 + bi * (barW + barGap), btnRowY - barH[bi] / 2, barW, barH[bi]);
   }
 
   // 4. 配饰按钮 — 粉色底圆 + 微型小鸟戴配饰
