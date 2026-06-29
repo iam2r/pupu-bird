@@ -11,6 +11,7 @@ function calcRankValue(score, pipesPassed) {
 
 // 上传最佳成绩
 function uploadBest(score, pipesPassed) {
+  if (!wx.setUserCloudStorage) return;
   var val = calcRankValue(score, pipesPassed);
   wx.setUserCloudStorage({
     KVDataList: [
@@ -27,6 +28,11 @@ function uploadBest(score, pipesPassed) {
 
 // 获取排行榜数据（含自己的排名）
 function fetchRankList(callback) {
+  if (!wx.getFriendCloudStorage) {
+    console.log('getFriendCloudStorage not available (dev tools limitation)');
+    callback([]);
+    return;
+  }
   wx.getFriendCloudStorage({
     keyList: ['rank_val', 'score', 'pipes', 'eff', 'update_time'],
     success: function(res) {
@@ -44,11 +50,7 @@ function fetchRankList(callback) {
           time: parseInt(kv.update_time) || 0
         };
       });
-      // 按 rank_val 降序
       list.sort(function(a, b) { return b.rankVal - a.rankVal; });
-      // 标记自己的排名
-      var selfOpenId = (res.data && res.data.length > 0) ? '' : '';
-      // getFriendCloudStorage 不直接返回自己的 openid，用 userGameData 判断
       for (var i = 0; i < list.length; i++) {
         list[i].rank = i + 1;
       }
