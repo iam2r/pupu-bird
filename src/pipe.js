@@ -39,43 +39,52 @@ function drawPipe(ctx, p, t) {
   var bot = p.gapCenter + C.PIPE_GAP / 2;
   var pw = C.PIPE_WIDTH;
 
-  // 销毁动画：Y轴从 gapCenter 向中间收缩
   if (p.destroyAnim > 0) {
-    var progress = p.destroyAnim; // 1→0
-    ctx.save();
-    ctx.translate(0, p.gapCenter);
-    ctx.scale(1, progress);
-    ctx.translate(0, -p.gapCenter);
+    // 上管向上收缩，下管向下收缩
+    var progress = 1 - p.destroyAnim; // 0→1
+    var ease = progress * (2 - progress); // ease-out quad
 
-    var flash = progress > 0.5 ? 1 : progress * 2;
-    ctx.globalAlpha = flash;
-  }
+    // 上管：底部固定在 top，向 C.GAME_TOP 收缩
+    var topH = (top - C.GAME_TOP) * ease;
+    var topY = top - topH;
+    ctx.fillStyle = t.pipe;
+    ctx.fillRect(p.x, topY, pw, topH);
 
-  ctx.fillStyle = t.pipe;
-  ctx.fillRect(p.x, C.GAME_TOP, pw, top - C.GAME_TOP);
-  ctx.fillRect(p.x, bot, pw, C.GAME_BOTTOM - bot);
+    // 下管：顶部固定在 bot，向 C.GAME_BOTTOM 收缩
+    var botH = (C.GAME_BOTTOM - bot) * ease;
+    ctx.fillStyle = t.pipe;
+    ctx.fillRect(p.x, bot, pw, botH);
 
-  // 高光（销毁时不画，保持简洁）
-  if (!p.destroyAnim) {
+    // 管口（跟随收缩）
+    if (ease > 0.1) {
+      var lipW = pw + 8;
+      ctx.fillStyle = t.pipe;
+      ctx.fillRect(p.x - 4, topY - 4, lipW, 8);
+      ctx.fillRect(p.x - 4, bot - 4, lipW, 8);
+      ctx.fillStyle = t.pipeDark;
+      ctx.fillRect(p.x - 4, topY - 4, lipW, 3);
+      ctx.fillRect(p.x - 4, bot + 1, lipW, 3);
+    }
+  } else {
+    ctx.fillStyle = t.pipe;
+    ctx.fillRect(p.x, C.GAME_TOP, pw, top - C.GAME_TOP);
+    ctx.fillRect(p.x, bot, pw, C.GAME_BOTTOM - bot);
+
+    // 高光
     ctx.fillStyle = t.pipeDark;
     ctx.fillRect(p.x, C.GAME_TOP, 4, top - C.GAME_TOP);
     ctx.fillRect(p.x + pw - 4, C.GAME_TOP, 4, top - C.GAME_TOP);
     ctx.fillRect(p.x, bot, 4, C.GAME_BOTTOM - bot);
     ctx.fillRect(p.x + pw - 4, bot, 4, C.GAME_BOTTOM - bot);
-  }
 
-  // 管口
-  var lipW = pw + 8;
-  ctx.fillStyle = t.pipe;
-  ctx.fillRect(p.x - 4, top - 8, lipW, 8);
-  ctx.fillRect(p.x - 4, bot, lipW, 8);
-  ctx.fillStyle = t.pipeDark;
-  ctx.fillRect(p.x - 4, top - 8, lipW, 3);
-  ctx.fillRect(p.x - 4, bot + 5, lipW, 3);
-
-  if (p.destroyAnim > 0) {
-    ctx.restore();
-    ctx.globalAlpha = 1;
+    // 管口
+    var lipW = pw + 8;
+    ctx.fillStyle = t.pipe;
+    ctx.fillRect(p.x - 4, top - 8, lipW, 8);
+    ctx.fillRect(p.x - 4, bot, lipW, 8);
+    ctx.fillStyle = t.pipeDark;
+    ctx.fillRect(p.x - 4, top - 8, lipW, 3);
+    ctx.fillRect(p.x - 4, bot + 5, lipW, 3);
   }
 }
 
