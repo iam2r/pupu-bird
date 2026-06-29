@@ -6,6 +6,7 @@ var C = require('./config.js');
 // 模块私有：离屏 Canvas 引用
 var memorialCanvas = null;
 var memorialCtx = null;
+var avatarImage = null;
 
 // 确保离屏 Canvas 存在
 function ensureMemorialCanvas() {
@@ -30,7 +31,7 @@ function getMemorialCanvas() {
 
 // 渲染纪念卡到离屏 Canvas
 // drawAcc(ctx, cx, cy, r, t, accKey) — 由 game.js 传入 bird.drawAccessoryOnCtx
-function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, drawAcc) {
+function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, drawAcc, userAvatarUrl) {
   ensureMemorialCanvas();
   if (!memorialCtx) return;
 
@@ -82,6 +83,29 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   C.roundRect(ctx, 140, 160, cw - 280, 3, 1.5);
   ctx.fill();
   ctx.globalAlpha = 1;
+
+  // 微信头像
+  if (userAvatarUrl) {
+    if (!avatarImage || avatarImage._src !== userAvatarUrl) {
+      avatarImage = wx.createImage();
+      avatarImage._src = userAvatarUrl;
+      avatarImage.src = userAvatarUrl;
+    }
+    if (avatarImage.width > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cw / 2, 70, 30, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(avatarImage, cw / 2 - 30, 40, 60, 60);
+      ctx.restore();
+    }
+    // 边框
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cw / 2, 70, 30, 0, Math.PI * 2);
+    ctx.stroke();
+  }
 
   // 标题
   ctx.fillStyle = t.textPri;

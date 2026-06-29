@@ -45,6 +45,7 @@ var memorialMsg;
 var points;
 var gameJustStarted = false;
 var gameCanvas = null;
+var userAvatarUrl = '';
 
 // ==================== 辅助函数 ====================
 
@@ -154,7 +155,7 @@ function die() {
   }
 
   // 预渲染纪念卡
-  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
 }
 
 function restartGame() {
@@ -197,7 +198,18 @@ function init(canvas, ctx, params) {
   unlockedAccessories = data.unlockedAccessories || { none: true };
   points = data.points;
 
+  isDailyChallenge = false;
   Memorial.ensureMemorialCanvas();
+  // 获取微信头像
+  wx.getSetting({
+    success: function(s) {
+      if (s.authSetting['scope.userInfo']) {
+        wx.getUserInfo({
+          success: function(u) { userAvatarUrl = u.userInfo.avatarUrl; }
+        });
+      }
+    }
+  });
   gotoMenu();
 }
 
@@ -462,10 +474,10 @@ function onTouch(e) {
   if (state === C.STATE.MEMORIAL) {
     var mAct = UI.hitTestMemorial(tx, ty);
     if (mAct.action === 'shareCard') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
       Memorial.shareMemorialCard();
     } else if (mAct.action === 'saveToAlbum') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl);
       Memorial.saveToAlbum();
     } else if (mAct.action === 'replay') {
       restartGame();
