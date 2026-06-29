@@ -174,44 +174,60 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
 }
 
 // 保存/分享纪念卡
-function saveMemorialCard() {
-  console.log('saveMemorialCard called, canvas:', !!memorialCanvas);
+var _shareImagePath = '';
+
+function shareMemorialCard() {
   if (!memorialCanvas) {
-    wx.showToast({ title: '保存功能暂不可用', icon: 'none' });
+    wx.showToast({ title: '生成失败', icon: 'none' });
     return;
   }
-  wx.canvasToTempFilePath({
-    canvas: memorialCanvas,
+  memorialCanvas.toTempFilePath({
     success: function(res) {
+      _shareImagePath = res.tempFilePath;
       if (wx.showShareImageMenu) {
         wx.showShareImageMenu({ path: res.tempFilePath });
-      } else {
-        // 先检查/请求相册权限
-        wx.getSetting({
-          success: function(setting) {
-            if (setting.authSetting['scope.writePhotosAlbum']) {
-              doSave();
-            } else {
-              wx.authorize({
-                scope: 'scope.writePhotosAlbum',
-                success: function() { doSave(); },
-                fail: function() { wx.showToast({ title: '请授权相册权限', icon: 'none' }); }
-              });
-            }
-          }
-        });
-        function doSave() {
-          wx.saveImageToPhotosAlbum({
-            filePath: res.tempFilePath,
-            success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
-            fail: function() { wx.showToast({ title: '保存失败，请重试', icon: 'none' }); }
-          });
-        }
+      } else if (wx.shareAppMessage) {
+        wx.shareAppMessage({ title: '来挑战我的噗噗鸟记录！', imageUrl: res.tempFilePath });
       }
     },
     fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
   });
 }
+
+function saveToAlbum() {
+  if (!memorialCanvas) {
+    wx.showToast({ title: '生成失败', icon: 'none' });
+    return;
+  }
+  memorialCanvas.toTempFilePath({
+    success: function(res) {
+      _shareImagePath = res.tempFilePath;
+      wx.getSetting({
+        success: function(setting) {
+          if (setting.authSetting['scope.writePhotosAlbum']) {
+            doSave();
+          } else {
+            wx.authorize({
+              scope: 'scope.writePhotosAlbum',
+              success: function() { doSave(); },
+              fail: function() { wx.showToast({ title: '请在设置中允许相册权限', icon: 'none' }); }
+            });
+          }
+        }
+      });
+      function doSave() {
+        wx.saveImageToPhotosAlbum({
+          filePath: res.tempFilePath,
+          success: function() { wx.showToast({ title: '已保存到相册', icon: 'none' }); },
+          fail: function() { wx.showToast({ title: '保存失败', icon: 'none' }); }
+        });
+      }
+    },
+    fail: function() { wx.showToast({ title: '生成图片失败', icon: 'none' }); }
+  });
+}
+
+function getShareImagePath() { return _shareImagePath; }
 
 // 尝试获取离屏 Canvas 的临时路径
 function prefetchMemorialImagePath(cb) {
@@ -233,7 +249,9 @@ module.exports = {
   ensureMemorialCanvas: ensureMemorialCanvas,
   getMemorialCanvas: getMemorialCanvas,
   renderMemorialCard: renderMemorialCard,
-  saveMemorialCard: saveMemorialCard,
+  shareMemorialCard: shareMemorialCard,
+  saveToAlbum: saveToAlbum,
+  getShareImagePath: getShareImagePath,
   prefetchMemorialImagePath: prefetchMemorialImagePath,
   destroyMemorialCanvas: destroyMemorialCanvas
 };

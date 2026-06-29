@@ -593,25 +593,32 @@ function drawMemorialScreen(ctx, t, stateData) {
   var btnW = C.W * 0.34, btnH = 40;
   var btnSpacing = C.W * 0.04;
 
-  // 保存分享按钮
-  var saveBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
+  // 分享好友按钮
+  var shareBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
   ctx.fillStyle = t.accent;
   ctx.globalAlpha = 0.15;
-  C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
+  C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
   ctx.globalAlpha = 1;
   ctx.strokeStyle = t.accent;
   ctx.lineWidth = 1;
-  C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
+  C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
   ctx.stroke();
-  C.drawText(ctx, '保存分享', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 13, t.textPri, true);
+  C.drawText(ctx, '分享好友', shareBtnX + btnW / 2, btnAreaY + btnH / 2, 13, t.textPri, true);
+
+  // 保存相册按钮
+  var saveBtnX = shareBtnX + btnW + btnSpacing;
+  ctx.fillStyle = t.accent;
+  C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
+  ctx.fill();
+  C.drawText(ctx, '保存相册', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 13, '#fff', true);
 
   // 再来一次按钮
-  var replayBtnX = saveBtnX + btnW + btnSpacing;
-  var btnGrad = ctx.createLinearGradient(0, btnAreaY, 0, btnAreaY + btnH);
-  btnGrad.addColorStop(0, t.accent);
-  btnGrad.addColorStop(1, t.accentDark);
-  ctx.fillStyle = btnGrad;
+  var replayBtnX = (C.W - btnW) / 2;
+  btnAreaY = btnAreaY + btnH + 10;
+  ctx.fillStyle = t.accent;
+  C.roundRect(ctx, replayBtnX, btnAreaY, btnW, btnH, 20);
+  ctx.fill();
   C.roundRect(ctx, replayBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
   C.drawText(ctx, '再来一次', replayBtnX + btnW / 2, btnAreaY + btnH / 2, 15, '#FFFFFF', true);
@@ -773,17 +780,25 @@ function hitTestMemorial(tx, ty) {
   var btnW = C.W * 0.34, btnH = 40;
   var btnSpacing = C.W * 0.04;
 
-  // 保存分享按钮
-  var saveBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
-  if (tx >= saveBtnX && tx <= saveBtnX + btnW &&
+  // 分享好友按钮
+  var shareBtnX = (C.W - btnW * 2 - btnSpacing) / 2;
+  if (tx >= shareBtnX && tx <= shareBtnX + btnW &&
       ty >= btnAreaY && ty <= btnAreaY + btnH) {
-    return { action: 'saveCard' };
+    return { action: 'shareCard' };
   }
 
-  // 再来一次按钮
-  var replayBtnX = saveBtnX + btnW + btnSpacing;
-  if (tx >= replayBtnX && tx <= replayBtnX + btnW &&
+  // 保存相册按钮
+  var saveBtnX = shareBtnX + btnW + btnSpacing;
+  if (tx >= saveBtnX && tx <= saveBtnX + btnW &&
       ty >= btnAreaY && ty <= btnAreaY + btnH) {
+    return { action: 'saveToAlbum' };
+  }
+
+  // 再来一次按钮（单独一行居中）
+  var replayBtnX = (C.W - btnW) / 2;
+  var replayY = btnAreaY + btnH + 10;
+  if (tx >= replayBtnX && tx <= replayBtnX + btnW &&
+      ty >= replayY && ty <= replayY + btnH) {
     return { action: 'replay' };
   }
 

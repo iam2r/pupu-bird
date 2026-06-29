@@ -460,9 +460,12 @@ function onTouch(e) {
   // MEMORIAL：保存分享 / 再来一次
   if (state === C.STATE.MEMORIAL) {
     var mAct = UI.hitTestMemorial(tx, ty);
-    if (mAct.action === 'saveCard') {
+    if (mAct.action === 'shareCard') {
       Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
-      Memorial.saveMemorialCard();
+      Memorial.shareMemorialCard();
+    } else if (mAct.action === 'saveToAlbum') {
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
+      Memorial.saveToAlbum();
     } else if (mAct.action === 'replay') {
       restartGame();
     }
