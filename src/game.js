@@ -44,6 +44,7 @@ var memorialMsg;
 // ---- 积分 ----
 var points;
 var gameJustStarted = false;
+var gameCanvas = null;
 
 // ==================== 辅助函数 ====================
 

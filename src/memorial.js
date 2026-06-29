@@ -194,38 +194,64 @@ function shareMemorialCard() {
   });
 }
 
-function saveToAlbum() {
-  if (!memorialCanvas) {
+function saveToAlbum(canvas) {
+  var c = canvas || memorialCanvas;
+  if (!c) {
     wx.showToast({ title: '生成失败', icon: 'none' });
     return;
   }
-  // 兼容新旧 canvas API，带尺寸参数
-  var genOpts = { x: 0, y: 0, width: 750, height: 1100, success: doSave, fail: function(e) { console.log('gen fail:', JSON.stringify(e)); wx.showToast({ title: '生成图片失败', icon: 'none' }); } };
-  if (memorialCanvas.toTempFilePath) {
-    memorialCanvas.toTempFilePath(genOpts);
-  } else if (wx.canvasToTempFilePath) {
-    genOpts.canvas = memorialCanvas;
-    wx.canvasToTempFilePath(genOpts);
-  } else {
-    wx.showToast({ title: '当前版本不支持', icon: 'none' });
-  }
-  function doSave(res) {
-    _shareImagePath = res.tempFilePath;
-    wx.saveImageToPhotosAlbum({
-      filePath: res.tempFilePath,
-      success: function() { wx.showToast({ title: '已保存到相册', icon: 'success' }); },
-      fail: function(err) {
-        var msg = err ? (err.errMsg || '') : '';
-        if (msg.indexOf('auth deny') > -1 || msg.indexOf('auth denied') > -1 || msg.indexOf('auth') > -1) {
-          wx.showModal({
-            title: '需要相册权限',
-            content: '请在设置中允许相册权限',
-            success: function(mr) { if (mr.confirm) wx.openSetting({}); }
-          });
-        } else {
-          wx.showToast({ title: '保存失败: ' + msg, icon: 'none' });
+  // Step 1: canvas → temp file
+  var genOpts = { x: 0, y: 0, width: c.width || 750, height: c.height || 1100, success: onTempFile, fail: function(e) { wx.showToast({ title: '生成图片失败', icon: 'none' }); } };
+  if (c.toTempFilePath) c.toTempFilePath(genOpts);
+  else if (wx.canvasToTempFilePath) { genOpts.canvas = c; wx.canvasToTempFilePath(genOpts); }
+  else { wx.showToast({ title: '当前版本不支持', icon: 'none' }); }
+
+  function onTempFile(res) {
+    var fp = res.tempFilePath;
+    _shareImagePath = fp;
+    // Step 2: 隐私授权检查
+    var checkThenSave = function() {
+      wx.getSetting({
+        success: function(s) {
+          if (s.authSetting['scope.writePhotosAlbum']) {
+            doSave(fp);
+          } else {
+            wx.authorize({
+              scope: 'scope.writePhotosAlbum',
+              success: function() { doSave(fp); },
+              fail: function() {
+                wx.showModal({
+                  title: '需要相册权限',
+                  content: '请在设置中允许相册权限',
+                  confirmText: '去设置',
+                  success: function(mr) {
+                    if (mr.confirm) {
+                      wx.openSetting({
+                        success: function(sr) {
+                          if (sr.authSetting['scope.writePhotosAlbum']) doSave(fp);
+                          else wx.showToast({ title: '未开启相册权限', icon: 'none' });
+                        }
+                      });
+                    }
+                  }
+                });
+              }
+            });
+          }
         }
-      }
+      });
+    };
+    if (wx.requirePrivacyAuthorize) {
+      wx.requirePrivacyAuthorize({ success: checkThenSave, fail: checkThenSave });
+    } else {
+      checkThenSave();
+    }
+  }
+  function doSave(fp) {
+    wx.saveImageToPhotosAlbum({
+      filePath: fp,
+      success: function() { wx.showToast({ title: '已保存到相册', icon: 'success' }); },
+      fail: function(e) { wx.showToast({ title: '保存失败', icon: 'none' }); }
     });
   }
 }
