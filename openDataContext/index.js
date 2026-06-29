@@ -292,12 +292,6 @@ function render() {
   ctx.textBaseline = 'middle';
   ctx.fillText('✕', closeCX, closeCY);
 
-  // 列标题
-  ctx.fillStyle = '#999999';
-  ctx.font = '11px sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('最高分', px + pw - 16, py + 25);
-
   // 无数据
   if (displayList.length === 0 && !showSelfBelow) {
     ctx.fillStyle = '#AAAAAA';
