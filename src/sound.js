@@ -228,6 +228,32 @@ function playChargeFull() {
   o2.start(now + 0.03); o2.stop(now + 0.06);
 }
 
+// ---- 连击音效：消消乐式旋律递增 ----
+function playCombo(level) {
+  var ctx = ensureCtx();
+  if (!ctx || level < 1) return;
+  var now = ctx.currentTime;
+  // GOOD(1): 单音, GREAT(2): 双音上行, AMAZING(3): 三音, FANTASTIC(5): 四音, LEGENDARY(7+): 五音
+  var count = level >= 7 ? 5 : level >= 5 ? 4 : level >= 3 ? 3 : level >= 2 ? 2 : 1;
+  var notes;
+  if (count === 1) notes = [523];                          // C5
+  else if (count === 2) notes = [523, 659];                 // C5 E5
+  else if (count === 3) notes = [523, 659, 784];            // C5 E5 G5
+  else if (count === 4) notes = [392, 523, 659, 784];       // G4 C5 E5 G5
+  else notes = [330, 392, 523, 659, 784];                   // E4 G4 C5 E5 G5
+  for (var ni = 0; ni < notes.length; ni++) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = notes[ni];
+    var t = now + ni * 0.07;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.18, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.2);
+  }
+}
+
 // ---- 销毁 ----
 function destroy() {
   if (audioCtx) {
@@ -248,5 +274,6 @@ module.exports = {
   stopCharge: stopCharge,
   playInvincible: playInvincible,
   playChargeFull: playChargeFull,
+  playCombo: playCombo,
   destroy: destroy
 };

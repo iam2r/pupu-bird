@@ -276,6 +276,7 @@ function update(dt) {
         var starScore = stars[si].bonus ? (2 + 2) * chargeMultiplier : 2 * chargeMultiplier;
         score += starScore;
         combo++;
+        Sound.playCombo(combo);
         if (combo === 3) { invincibleTimer = 2.5; Sound.playInvincible(); }
         Sound.playStarPickup();
       }
