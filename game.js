@@ -24,6 +24,13 @@ if (wx.onNeedPrivacyAuthorization) {
     });
   });
 }
+if (wx.getPrivacySetting) {
+  wx.getPrivacySetting({
+    success: function(s) {
+      if (!s.needAuthorization) console.log('privacy already authorized');
+    }
+  });
+}
 
 wx.onTouchStart(function(e) { game.onTouch(e); });
 wx.onTouchMove(function(e) { game.onTouch(e); });
