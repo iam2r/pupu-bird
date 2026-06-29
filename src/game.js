@@ -369,28 +369,38 @@ function draw(ctx) {
     }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawScorePanel(ctx, score, t);
-    // 无敌倒计时
+    // 无敌倒计时（跟连击一起）
     if (invincibleTimer > 0) {
       var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
       ctx.save();
       ctx.globalAlpha = 0.7 + 0.3 * pulse;
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 15px sans-serif';
+      ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, C.GAME_TOP + 22 + 15 * 0.35);
+      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, C.GAME_TOP + 105 + 14 * 0.35);
       ctx.restore();
     }
-    // 连击大字（独立，消消乐风格）
-    if (combo >= 3) {
+    // 连击大字（消消乐风格）
+    if (combo >= 1) {
+      var comboText, comboColor, comboSize;
+      if (combo >= 7)      { comboText = 'LEGENDARY'; comboColor = '#FF44FF'; comboSize = 34; }
+      else if (combo >= 5) { comboText = 'FANTASTIC'; comboColor = '#FF4444'; comboSize = 32; }
+      else if (combo >= 3) { comboText = 'AMAZING';  comboColor = '#FF8800'; comboSize = 30; }
+      else if (combo >= 2) { comboText = 'GREAT';    comboColor = '#FFCC00'; comboSize = 26; }
+      else                 { comboText = 'GOOD';      comboColor = '#FFFFFF'; comboSize = 22; }
       ctx.save();
-      var comboPulse = 1 + 0.1 * Math.sin(Date.now() * 0.015);
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold ' + Math.floor(36 * comboPulse) + 'px sans-serif';
+      var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
+      ctx.globalAlpha = 0.8;
+      ctx.fillStyle = comboColor;
+      ctx.font = 'bold ' + Math.floor(comboSize * cPop) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('x' + combo, C.W / 2, C.GAME_TOP + 120);
+      ctx.fillText(comboText, C.W / 2, C.GAME_TOP + 135);
+      // 小字 xN
+      ctx.globalAlpha = 0.6;
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('x' + combo, C.W / 2, C.GAME_TOP + 155);
       ctx.restore();
     }
   } else if (state === C.STATE.DEAD) {
