@@ -756,9 +756,16 @@ function onTouch(e) {
     } else {
       // touchEnd
       if (leaderboardJustOpened) { leaderboardJustOpened = false; return; }
-      // 点击排行榜面板外 → 关闭
-      var lbW = C.W * 0.88, lbH = C.H * 0.75;
+      // 排行榜面板尺寸（与主题面板统一）
+      var lbW = C.W * 0.82, lbH = C.H * 0.55;
       var lbX = (C.W - lbW) / 2, lbY = (C.H - lbH) / 2;
+      // 关闭按钮 ✕
+      var closeCX = lbX + lbW - 22, closeCY = lbY + 18;
+      if (Math.sqrt((tx - closeCX) * (tx - closeCX) + (ty - closeCY) * (ty - closeCY)) < 16) {
+        hideLeaderboardOverlay();
+        return;
+      }
+      // 点击面板外 → 关闭
       if (tx < lbX || tx > lbX + lbW || ty < lbY || ty > lbY + lbH) {
         hideLeaderboardOverlay();
         return;

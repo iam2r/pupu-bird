@@ -175,12 +175,30 @@ function processAndRender(rawFriends, my) {
   sortAndRender();
 }
 
+// Top 10 显示列表 + 自排名信息
+var displayList = [];
+var selfRank = -1;      // 自己的排名（1-based）
+var showSelfBelow = false; // 自己不在 top 10 时底部追加
+
 function sortAndRender() {
-  console.log('[OpenData] sortAndRender, friends列表:', friends.length, '条, 内容:', JSON.stringify(friends.map(function(f) { return { n: f.nickname, bs: f.bestScore, me: f.isMe }; })));
   // 排序：复合分降序
   friends.sort(function(a, b) {
     return b.bestScore - a.bestScore;
   });
+
+  // 找到自己的排名
+  selfRank = -1;
+  for (var i = 0; i < friends.length; i++) {
+    if (friends[i].isMe) { selfRank = i + 1; break; }
+  }
+
+  // Top 10
+  displayList = friends.slice(0, 10);
+
+  // 自己不在 top 10 则底部单独显示
+  showSelfBelow = selfRank > 10;
+
+  console.log('[OpenData] 总排行:', friends.length, '人, Top10:', displayList.length, '自己排名:', selfRank, '底部显示:', showSelfBelow);
 
   // 预加载头像
   preloadAvatars();
@@ -190,8 +208,15 @@ function sortAndRender() {
 // ==================== 头像加载 ====================
 
 function preloadAvatars() {
-  for (var i = 0; i < friends.length; i++) {
-    var f = friends[i];
+  var list = displayList.slice();
+  if (showSelfBelow && selfRank > 0) {
+    // 找到自己那行
+    for (var i = 0; i < friends.length; i++) {
+      if (friends[i].isMe) { list.push(friends[i]); break; }
+    }
+  }
+  for (var i = 0; i < list.length; i++) {
+    var f = list[i];
     if (f.avatarUrl && !avatarCache[f.openId] && !avatarLoaded[f.openId]) {
       avatarLoaded[f.openId] = true;
       loadAvatar(f.openId, f.avatarUrl);
@@ -228,12 +253,17 @@ function render() {
   ctx.fillStyle = 'rgba(0,0,0,0.5)';
   ctx.fillRect(0, 0, W, H);
 
-  // 面板尺寸
-  var pw = W * 0.88;
-  var ph = H * 0.75;
+  // 面板尺寸（与主题/配饰面板统一）
+  var pw = W * 0.82;
+  var ph = H * 0.55;
   var px = (W - pw) / 2;
   var py = (H - ph) / 2;
-  var borderRadius = 16;
+  var borderRadius = 18;
+
+  // 面板阴影
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  roundRect(px + 2, py + 3, pw, ph, borderRadius);
+  ctx.fill();
 
   // 面板背景
   ctx.fillStyle = '#FFFFFF';
@@ -247,10 +277,20 @@ function render() {
 
   // 标题
   ctx.fillStyle = '#333333';
-  ctx.font = 'bold 17px sans-serif';
+  ctx.font = 'bold 16px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('好友排行榜', W / 2, py + 25);
+  ctx.fillText('好友排行榜', W / 2, py + 27);
+
+  // 关闭按钮 ✕（与主题面板位置一致）
+  var closeCX = px + pw - 22, closeCY = py + 18;
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.beginPath(); ctx.arc(closeCX, closeCY, 12, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#999999';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('✕', closeCX, closeCY);
 
   // 列标题
   ctx.fillStyle = '#999999';
@@ -259,7 +299,7 @@ function render() {
   ctx.fillText('最高分', px + pw - 16, py + 25);
 
   // 无数据
-  if (friends.length === 0) {
+  if (displayList.length === 0 && !showSelfBelow) {
     ctx.fillStyle = '#AAAAAA';
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
@@ -268,26 +308,100 @@ function render() {
     return;
   }
 
-  // 裁剪区域（列表区）
-  ctx.save();
+  var rowH = 52;
+  var footerH = 40; // 底部排名条高度
+  var selfGapH = showSelfBelow ? rowH + 12 : 0; // 自己行 + 分隔间距
+  var bottomH = selfGapH + footerH;
   var listTop = py + 56;
-  var listBottom = py + ph - 8;
+  var listBottom = py + ph - bottomH;
+
+  // 裁剪区域（Top 10 列表区）
+  ctx.save();
   ctx.beginPath();
   roundRect(px + 2, listTop - 2, pw - 4, listBottom - listTop + 4, 8);
   ctx.clip();
 
-  var rowH = 62;
-  var totalH = friends.length * rowH;
+  var totalH = displayList.length * rowH;
   maxScroll = Math.max(0, totalH - (listBottom - listTop));
 
-  for (var i = 0; i < friends.length; i++) {
+  for (var i = 0; i < displayList.length; i++) {
     var rowY = listTop + i * rowH - scrollOffset;
     if (rowY + rowH < listTop || rowY > listBottom) continue;
-
-    drawFriendRow(friends[i], i, px + 8, rowY, pw - 16, rowH);
+    // 计算真实排名（排序后的 index）
+    var realRank = -1;
+    for (var j = 0; j < friends.length; j++) {
+      if (friends[j].openId === displayList[i].openId) { realRank = j + 1; break; }
+    }
+    drawFriendRow(displayList[i], realRank - 1, px + 8, rowY, pw - 16, rowH);
   }
 
   ctx.restore();
+
+  // 底部分隔线 + 自己行
+  if (showSelfBelow && selfRank > 0) {
+    var sepY = listBottom + 4;
+    ctx.strokeStyle = '#E8E8E8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + 20, sepY);
+    ctx.lineTo(px + pw - 20, sepY);
+    ctx.stroke();
+
+    // 找到自己那行数据
+    var selfRow = null;
+    for (var k = 0; k < friends.length; k++) {
+      if (friends[k].isMe) { selfRow = friends[k]; break; }
+    }
+    if (selfRow) {
+      drawFriendRow(selfRow, selfRank - 1, px + 8, sepY + 6, pw - 16, rowH);
+    }
+  }
+
+  // 排名提示 — 底部艺术条
+  var footerBarY = py + ph - footerH;
+  var footerBarH = 32;
+  // 渐变背景条
+  var fGrad = ctx.createLinearGradient(px + 8, footerBarY, px + 8, footerBarY + footerBarH);
+  fGrad.addColorStop(0, 'rgba(255,170,80,0.18)');
+  fGrad.addColorStop(1, 'rgba(255,120,60,0.12)');
+  ctx.fillStyle = fGrad;
+  roundRect(px + 8, footerBarY, pw - 16, footerBarH, 10);
+  ctx.fill();
+  // 细边框
+  ctx.strokeStyle = 'rgba(255,150,80,0.3)';
+  ctx.lineWidth = 1;
+  roundRect(px + 8, footerBarY, pw - 16, footerBarH, 10);
+  ctx.stroke();
+
+  if (selfRank > 0) {
+    // "你的排名"
+    ctx.fillStyle = '#CC8844';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('🏅 你的排名', px + 24, footerBarY + footerBarH / 2);
+
+    // 排名数字（右侧高亮badge）
+    var rankStr = '第' + selfRank + '名';
+    var badgeW = ctx.measureText(rankStr).width + 20;
+    var badgeX = px + pw - 24 - badgeW;
+    var badgeY = footerBarY + 4;
+    var badgeH = footerBarH - 8;
+
+    ctx.fillStyle = 'rgba(255,140,60,0.2)';
+    roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#E07030';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(rankStr, badgeX + badgeW / 2, footerBarY + footerBarH / 2);
+  } else {
+    ctx.fillStyle = '#AAAAAA';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无排名，快去玩一局吧~', W / 2, footerBarY + footerBarH / 2);
+  }
 }
 
 function drawFriendRow(friend, index, x, y, w, h) {
