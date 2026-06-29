@@ -134,19 +134,19 @@ function die() {
   if (score > best) best = score;
   Storage.saveData(buildSaveData());
 
-  // 检查解锁新主题（基于累计积分）
-  var anyNew = false;
+  // 检查解锁新主题（基于累计积分，完全由配置驱动）
+  var newUnlocks = [];
   var keys = Object.keys(C.THEMES);
   for (var i = 0; i < keys.length; i++) {
     var k = keys[i];
     if (!unlockedThemes[k] && points >= C.THEMES[k].unlock) {
       unlockedThemes[k] = true;
-      anyNew = true;
+      newUnlocks.push(C.THEMES[k].name);
     }
   }
-  if (anyNew) {
+  if (newUnlocks.length > 0) {
     Storage.saveData(buildSaveData());
-    wx.showToast({ title: '解锁新主题！', icon: 'none', duration: 2000 });
+    wx.showToast({ title: '解锁：' + newUnlocks.join('、'), icon: 'none', duration: 2500 });
   }
 
   // 积分奖励：2分起奖，基础1 + 每5分+1，连击加成，单局上限20

@@ -540,17 +540,6 @@ function drawGameOverPanel(ctx, t, stateData) {
   var bestLabel = '最高 ' + (best || 0);
   C.drawText(ctx, bestLabel, scoreTextX, scoreY + 72, 13, t.textSec, false);
 
-  // 如果解锁了新主题，显示提示
-  var newUnlock = '';
-  if (medalLevel >= 2 && !unlockedThemes.starry && score >= 15) {
-    newUnlock = '解锁星空紫主题！';
-  } else if (medalLevel >= 3 && !unlockedThemes.ocean && score >= 25) {
-    newUnlock = '解锁海洋蓝主题！';
-  }
-  if (newUnlock) {
-    C.drawText(ctx, newUnlock, px + pw / 2, scoreY + 94, 12, t.accent, true);
-  }
-
   // "查看纪念卡" 按钮
   var cardBtnW = pw * 0.65, cardBtnH = 38;
   var cardBtnX = (C.W - cardBtnW) / 2;
