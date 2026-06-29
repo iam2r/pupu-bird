@@ -369,19 +369,7 @@ function draw(ctx) {
     }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawScorePanel(ctx, score, t);
-    // 倍率/无敌/combo 指示器统一顶部
-    var indicatorY = C.GAME_TOP + 22;
-    if (chargeMultiplier > 1) {
-      ctx.save();
-      ctx.globalAlpha = 0.8;
-      ctx.fillStyle = '#FF6600';
-      ctx.font = 'bold 15px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('x' + chargeMultiplier, C.W / 2, indicatorY + 15 * 0.35);
-      ctx.restore();
-      indicatorY += 18;
-    }
+    // 无敌倒计时
     if (invincibleTimer > 0) {
       var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
       ctx.save();
@@ -390,18 +378,19 @@ function draw(ctx) {
       ctx.font = 'bold 15px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, indicatorY + 15 * 0.35);
+      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.W / 2, C.GAME_TOP + 22 + 15 * 0.35);
       ctx.restore();
-      indicatorY += 18;
     }
+    // 连击大字（独立，消消乐风格）
     if (combo >= 3) {
       ctx.save();
-      ctx.globalAlpha = 0.9;
+      var comboPulse = 1 + 0.1 * Math.sin(Date.now() * 0.015);
+      ctx.globalAlpha = 0.85;
       ctx.fillStyle = '#FFD700';
-      ctx.font = 'bold 15px sans-serif';
+      ctx.font = 'bold ' + Math.floor(36 * comboPulse) + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      ctx.fillText('x' + combo, C.W / 2, indicatorY + 15 * 0.35);
+      ctx.fillText('x' + combo, C.W / 2, C.GAME_TOP + 120);
       ctx.restore();
     }
   } else if (state === C.STATE.DEAD) {
