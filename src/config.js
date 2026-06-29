@@ -254,6 +254,13 @@ function drawTextLeft(ctx, text, x, y, fontSize, color, bold) {
   ctx.fillText(text, x, y + fontSize * 0.35);
 }
 
+function hexToRgba(hex, alpha) {
+  var r = parseInt(hex.slice(1, 3), 16);
+  var g = parseInt(hex.slice(3, 5), 16);
+  var b = parseInt(hex.slice(5, 7), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
 function getTodayStr() {
   var d = new Date();
   return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
@@ -292,6 +299,7 @@ module.exports = {
   roundRect: roundRect,
   drawText: drawText,
   drawTextLeft: drawTextLeft,
+  hexToRgba: hexToRgba,
   getTodayStr: getTodayStr,
   seededRandom: seededRandom
 };

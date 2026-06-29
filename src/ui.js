@@ -152,14 +152,12 @@ function drawStartScreen(ctx, t, stateData) {
   var spacing = 12;
   var totalW = circleR * 2 * 3 + spacing * 2;
   var startX = (C.W - totalW) / 2;
-  var pinkFill = 'rgba(255,179,179,0.22)';
-  var pinkBorder = 'rgba(255,159,143,0.55)';
 
-  // 1. 主题按钮 — Canvas色块圆圈（bird色填充 + accent色描边）
+  // 1. 主题按钮 — Canvas色块圆圈（bird色填充 + accent色描边，跟随主题色）
   var btn1CX = startX + circleR;
   var isThemeLocked = !unlockedThemes[currentTheme];
-  // 外圈边框
-  ctx.strokeStyle = pinkBorder;
+  // 外圈边框 — 主题色
+  ctx.strokeStyle = t.accent;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   // 内圈色块
@@ -179,11 +177,14 @@ function drawStartScreen(ctx, t, stateData) {
     ctx.strokeRect(btn1CX - lw / 2, ly, lw, lh);
   }
 
-  // 2. 头像按钮 — 微信头像 / 人物图标（居中，最显眼）
+  // 2. 头像按钮 — 微信头像 / 人物图标（居中，最显眼，跟随主题色）
   var btn2CX = startX + circleR * 3 + spacing;
-  ctx.fillStyle = avatarEnabled ? 'rgba(255,200,180,0.35)' : pinkFill;
+  ctx.save();
+  ctx.globalAlpha = avatarEnabled ? 0.2 : 0.18;
+  ctx.fillStyle = t.accent;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = avatarEnabled ? t.accent : pinkBorder;
+  ctx.restore();
+  ctx.strokeStyle = t.accent;
   ctx.lineWidth = avatarEnabled ? 2 : 1;
   ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   if (avatarEnabled && avatarImg && avatarImg.width > 0) {
@@ -196,22 +197,28 @@ function drawStartScreen(ctx, t, stateData) {
     ctx.drawImage(avatarImg, btn2CX - avatarImg.width * thumbScale / 2, btnRowY - avatarImg.height * thumbScale / 2, avatarImg.width * thumbScale, avatarImg.height * thumbScale);
     ctx.restore();
   } else {
-    // 人物剪影图标
+    // 人物剪影图标 — 跟随主题色
     var iconX = btn2CX, iconY = btnRowY;
-    ctx.fillStyle = '#CCBBBB';
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = t.accent;
     ctx.beginPath();
     ctx.arc(iconX, iconY - 4, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
     ctx.ellipse(iconX, iconY + 7, 8, 6, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
 
-  // 3. 配饰按钮 — 粉色底圆 + 微型小鸟(半径10px)戴配饰
+  // 3. 配饰按钮 — 主题色底圆 + 微型小鸟(半径10px)戴配饰，跟随主题色
   var btn3CX = startX + circleR * 5 + spacing * 2;
-  ctx.fillStyle = pinkFill;
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = t.accent;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = pinkBorder;
+  ctx.restore();
+  ctx.strokeStyle = t.accent;
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
   var mr = 10, bx = btn3CX, by = btnRowY;
@@ -236,11 +243,14 @@ function drawStartScreen(ctx, t, stateData) {
   C.roundRect(ctx, startBtnX, startBtnCY - startBtnH / 2, startBtnW, startBtnH, 20);
   ctx.fill();
 
-  // 白色描边
-  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  // 主题色描边
+  ctx.save();
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = t.accentDark;
   ctx.lineWidth = 1.5;
   C.roundRect(ctx, startBtnX, startBtnCY - startBtnH / 2, startBtnW, startBtnH, 20);
   ctx.stroke();
+  ctx.restore();
 
   C.drawText(ctx, '开始', C.W / 2, startBtnCY, 16, '#FFFFFF', true);
 
@@ -303,11 +313,14 @@ function drawThemePanel(ctx, t, stateData) {
     var isCurrent = key === currentTheme;
     var unlocked = unlockedThemes[key];
 
-    // 当前主题高亮
+    // 当前主题高亮 — 跟随主题色
     if (isCurrent) {
-      ctx.fillStyle = 'rgba(255,179,179,0.13)';
+      ctx.save();
+      ctx.globalAlpha = 0.13;
+      ctx.fillStyle = t.accent;
       C.roundRect(ctx, px + 12, rowY + 2, pw - 24, rowH - 4, 8);
       ctx.fill();
+      ctx.restore();
     }
 
     // 主题名
@@ -412,11 +425,14 @@ function drawAccessoryPanel(ctx, t, stateData) {
     var isCurrent = key === currentAccessory;
     var unlocked = key === 'none' || unlockedAccessories[key];
 
-    // 当前配饰高亮
+    // 当前配饰高亮 — 跟随主题色
     if (isCurrent) {
-      ctx.fillStyle = 'rgba(255,179,179,0.13)';
+      ctx.save();
+      ctx.globalAlpha = 0.13;
+      ctx.fillStyle = t.accent;
       C.roundRect(ctx, px + 12, rowY + 2, pw - 24, rowH - 4, 8);
       ctx.fill();
+      ctx.restore();
     }
 
     // 配饰名（未解锁灰色）
@@ -545,15 +561,19 @@ function drawGameOverPanel(ctx, t, stateData) {
   var cardBtnX = (C.W - cardBtnW) / 2;
   var cardBtnY = py + ph - cardBtnH - 58;
 
-  ctx.fillStyle = 'rgba(255,220,220,0.5)';
+  ctx.save();
+  ctx.globalAlpha = 0.3;
+  ctx.fillStyle = t.accent;
   C.roundRect(ctx, cardBtnX, cardBtnY, cardBtnW, cardBtnH, 19);
   ctx.fill();
+  ctx.restore();
   ctx.strokeStyle = t.accent;
+  ctx.save();
   ctx.globalAlpha = 0.4;
   ctx.lineWidth = 1;
   C.roundRect(ctx, cardBtnX, cardBtnY, cardBtnW, cardBtnH, 19);
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  ctx.restore();
   C.drawText(ctx, '查看纪念卡', C.W / 2, cardBtnY + cardBtnH / 2, 13, t.textPri, true);
 
   // 再来一次按钮
@@ -561,9 +581,12 @@ function drawGameOverPanel(ctx, t, stateData) {
   var btnX = (C.W - btnW) / 2;
   var btnY = py + ph - btnH - 10;
 
-  ctx.fillStyle = 'rgba(200,160,160,0.2)';
+  ctx.save();
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = t.accentDark;
   C.roundRect(ctx, btnX, btnY + 2, btnW, btnH, 21);
   ctx.fill();
+  ctx.restore();
 
   var btnGrad = ctx.createLinearGradient(0, btnY, 0, btnY + btnH);
   btnGrad.addColorStop(0, t.accent);
@@ -572,12 +595,13 @@ function drawGameOverPanel(ctx, t, stateData) {
   C.roundRect(ctx, btnX, btnY, btnW, btnH, 21);
   ctx.fill();
 
-  ctx.strokeStyle = t.accentDark;
+  ctx.save();
   ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = t.accentDark;
   ctx.lineWidth = 0.5;
   C.roundRect(ctx, btnX, btnY, btnW, btnH, 21);
   ctx.stroke();
-  ctx.globalAlpha = 1;
+  ctx.restore();
 
   C.drawText(ctx, '再来一次', C.W / 2, btnY + btnH / 2, 15, '#FFFFFF', true);
 

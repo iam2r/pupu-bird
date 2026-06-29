@@ -680,8 +680,9 @@ function onTouch(e) {
 
   // 面板内交互委托给 UI 模块
   if (paneling && state === C.STATE.MENU) {
-    if (e.touches && e.touches.length === 0) {
-      if (panelJustOpened) { panelJustOpened = false; return; }
+    // touchStart 时清除 panelJustOpened，避免吞掉关闭按钮的首次点击
+    if (e.touches && e.touches.length > 0) {
+      panelJustOpened = false;
     }
     var pAct = UI.handlePanelTouch(tx, ty, e, { paneling: paneling, points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme, currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
     if (pAct) {
