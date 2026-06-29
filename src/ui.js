@@ -510,7 +510,7 @@ function drawGameOverPanel(ctx, t, stateData) {
   C.roundRect(ctx, cardBtnX, cardBtnY, cardBtnW, cardBtnH, 19);
   ctx.stroke();
   ctx.globalAlpha = 1;
-  C.drawText(ctx, '💌 查看纪念卡', C.W / 2, cardBtnY + cardBtnH / 2, 13, t.textPri, true);
+  C.drawText(ctx, '查看纪念卡', C.W / 2, cardBtnY + cardBtnH / 2, 13, t.textPri, true);
 
   // 再来一次按钮
   var btnW = pw * 0.65, btnH = 42;
