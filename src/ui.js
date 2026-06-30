@@ -1365,7 +1365,7 @@ function getUploadData() {
 var DBG_PARAMS = [
   { g: '道具', k: 'itemProb', n: '道具率', s: 0.05, fmt: '%' },
   { g: '道具', k: 'backpackSlots', n: '背包格', s: 1, fmt: '' },
-  { g: '道具', k: 'itemDurations.slow', n: '减速持续(s)', s: 1, fmt: 's' },
+  { g: '道具', k: 'itemDurations.invincible', n: '无敌持续(s)', s: 1, fmt: 's' },
   { g: '蓄力', k: 'chargeMaxTime', n: '满蓄(s)', s: 0.05, fmt: 's' },
   { g: '蓄力', k: 'chargeMaxVel', n: '满蓄速', s: 10, fmt: '' },
   { g: '积分', k: 'pointsMaxPerGame', n: '单局上限', s: 5, fmt: '' },

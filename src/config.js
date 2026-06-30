@@ -247,9 +247,9 @@ var BALANCE = {
   backpackSlots: 2,       // 背包槽位
   backpackSlotsDebug: 4,  // debug模式背包槽位
   itemDurations: {        // 道具持续时间(秒)
-    shield: 99,            // 护盾(直至消耗)
-    magnet: 5,
-    slow: 12,
+    shield: 12,            // 护盾
+    magnet: 6,
+    invincible: 6,
     double: 10
   },
 

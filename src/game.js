@@ -669,7 +669,7 @@ function update(dt) {
       Sound.playCombo(bird.combo);
       Sound.playStarPickup();
       // 里程碑
-      if (bird.combo % 3 === 0) { bird.invincibleTimer = Math.min(3.5, 2 + Math.floor(bird.combo / 3) * 0.5); Sound.playInvincible(); }
+      if (bird.combo % 3 === 0) { bird.invincibleTimer += Math.min(3.5, 2 + Math.floor(bird.combo / 3) * 0.5); Sound.playInvincible(); }
       else if (bird.combo === 5) { score += 15; }
       else if (bird.combo === 7) { score += 30; }
     }
@@ -757,7 +757,7 @@ function update(dt) {
   // 管道移动 & 计分
   var scrollSpeed = C.SCROLL_SPEED;
   if (invincibleTimer > 0) scrollSpeed *= 1.5;
-  if (activeItem && activeItem.type === 'slow') scrollSpeed *= 0.15;
+  // 无敌道具首次激活时叠加时长（在背包点击/AUTO拾取处设置初始值，此处不再重复）
   var scroll = scrollSpeed * s;
   var t = C.getT(currentTheme);
   for (var i = 0; i < pipes.length; i++) {
@@ -806,7 +806,7 @@ function update(dt) {
       combo++;
       Sound.playCombo(combo);
       // 里程碑奖励
-      if (combo % 3 === 0) { invincibleTimer = Math.min(3.5, 2 + Math.floor(combo / 3) * 0.5); Sound.resetInvincibleBeep(); Sound.playInvincible(); }
+      if (combo % 3 === 0) { invincibleTimer += Math.min(3.5, 2 + Math.floor(combo / 3) * 0.5); Sound.resetInvincibleBeep(); Sound.playInvincible(); }
       else if (combo === 5) { score += 15; }
       else if (combo === 7) { score += 30; }
       Sound.playStarPickup();
@@ -832,7 +832,8 @@ function update(dt) {
     if (Item.checkPickup(items[ii], C.BIRD_X, birdY, birdR)) {
       items[ii].collected = true;
       if (autoItem) {
-        activeItem = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'slow' ? C.BALANCE.itemDurations.slow : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield };
+        if (items[ii].type === 'invincible') { invincibleTimer += C.BALANCE.itemDurations.invincible; }
+        else { activeItem = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield }; }
       } else if (backpack.length < C.BALANCE.backpackSlots) {
         backpack.push(items[ii].type);
       }
@@ -874,15 +875,6 @@ function draw(ctx) {
       if (!items[ii].collected) Item.drawItem(ctx, items[ii]);
     }
   }
-  // 减速视觉提示
-  if (state === C.STATE.PLAYING && activeItem && activeItem.type === 'slow') {
-    ctx.save();
-    ctx.globalAlpha = 0.12;
-    ctx.fillStyle = '#2196F3';
-    ctx.fillRect(0, 0, C.W, C.H);
-    ctx.restore();
-  }
-
   // 道具背包 + 激活提示
   if (state === C.STATE.PLAYING) {
     Item.drawBackpack(ctx, backpack, t, autoItem);
@@ -1419,8 +1411,8 @@ function onTouch(e) {
     var slotIdx = Item.hitTestBackpack(tx, ty, backpack);
     if (slotIdx >= 0) {
       var usedType = backpack.splice(slotIdx, 1)[0];
-      activeItem = { type: usedType, timer: usedType === "double" ? C.BALANCE.itemDurations.double : usedType === "slow" ? C.BALANCE.itemDurations.slow : usedType === "magnet" ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield };
-      return;
+      if (usedType === 'invincible') { invincibleTimer += C.BALANCE.itemDurations.invincible; }
+	      else { activeItem = { type: usedType, timer: usedType === "double" ? C.BALANCE.itemDurations.double : usedType === "magnet" ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield }; }
     }
   }
 

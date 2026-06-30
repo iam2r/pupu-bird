@@ -4,7 +4,7 @@ var C = require('./config.js');
 var ITEMS = {
   shield: { name: '护盾', color: '#4FC3F7', prob: 0.40 },
   magnet: { name: '磁铁', color: '#FFB74D', prob: 0.25 },
-  slow:   { name: '减速', color: '#81C784', prob: 0.20 },
+  invincible: { name: '无敌', color: '#FFD700', prob: 0.20 },
   double: { name: '双倍', color: '#E57373', prob: 0.15 }
 };
 
@@ -58,16 +58,14 @@ function _drawMagnet(ctx, cx, cy, s) {
   ctx.beginPath(); ctx.arc(cx + s * 0.5, cy - s * 0.55, s * 0.3, 0, Math.PI * 2); ctx.fill();
 }
 
-function _drawSlow(ctx, cx, cy, s) {
-  // 圆形时钟
-  ctx.strokeStyle = '#2E7D32';
-  ctx.lineWidth = s * 0.3;
-  ctx.beginPath(); ctx.arc(cx, cy, s * 0.7, 0, Math.PI * 2); ctx.stroke();
-  // 指针（指向7点方向 = 减速）
-  ctx.strokeStyle = '#2E7D32';
-  ctx.lineWidth = s * 0.2; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - s * 0.3, cy + s * 0.4); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + s * 0.2, cy - s * 0.5); ctx.stroke();
+function _drawInvincible(ctx, cx, cy, s) {
+  // 星芒护盾
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = s * 0.25; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(cx, cy, s * 0.65, 0, Math.PI * 2); ctx.stroke();
+  // 内十字
+  ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.4); ctx.lineTo(cx, cy + s * 0.4); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx - s * 0.4, cy); ctx.lineTo(cx + s * 0.4, cy); ctx.stroke();
 }
 
 function _drawDouble(ctx, cx, cy, s) {
@@ -90,7 +88,7 @@ function _drawDouble(ctx, cx, cy, s) {
 function _drawTypeIcon(ctx, type, cx, cy, s) {
   if (type === 'shield') _drawShield(ctx, cx, cy, s);
   else if (type === 'magnet') _drawMagnet(ctx, cx, cy, s);
-  else if (type === 'slow') _drawSlow(ctx, cx, cy, s);
+  else if (type === 'invincible') _drawInvincible(ctx, cx, cy, s);
   else if (type === 'double') _drawDouble(ctx, cx, cy, s);
 }
 
