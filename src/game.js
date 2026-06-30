@@ -1494,7 +1494,7 @@ function onTouch(e) {
             if (key === 'A') Sound.startCharge(); else Sound.startCharge2();
             // 活鸟蓄力唤醒眩晕对方
             var otherBd = key === 'A' ? birdB : birdA;
-            if (otherBd && otherBd.alive && otherBd.stunned) otherBd.stunned = false; otherBd.invincibleTimer = 0.15; otherBd.wakeFlash = 0.4;
+            if (otherBd && otherBd.alive && otherBd.stunned) { otherBd.stunned = false; otherBd.invincibleTimer = 0.15; otherBd.wakeFlash = 0.4; }
           }
         }
         // 松开的触控→释放跳跃
