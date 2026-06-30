@@ -331,7 +331,7 @@ function drawThemePanel(ctx, t, stateData) {
   ctx.fillRect(0, 0, C.W, C.H);
 
   // 面板几何
-  var pw = C.W * 0.82, ph = C.H * 0.52;
+  var pw = C.W * 0.82, ph = C.H * 0.55;
   var px = (C.W - pw) / 2, py = (C.H - ph) / 2;
 
   // 阴影
@@ -852,7 +852,7 @@ function hitBackButton(tx, ty) {
 // 面板几何辅助（与 drawThemePanel / drawAccessoryPanel 保持一致）
 function _panelGeo(panelType) {
   var pw = C.W * 0.82;
-  var ph = panelType === 'theme' ? C.H * 0.52 : C.H * 0.48;
+  var ph = panelType === 'theme' ? C.H * 0.55 : C.H * 0.48;
   var px = (C.W - pw) / 2;
   var py = (C.H - ph) / 2;
   var listTop = py + 48;
@@ -1222,14 +1222,14 @@ function drawDebugButton(ctx) {
 
 function drawDebugPanel(ctx) {
   if (!C.DEBUG) return;
-  var pw = 220, ph = 314, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 356, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, C.W, C.H);
   ctx.fillStyle = '#fff';
   C.roundRect(ctx, px, py, pw, ph, 16);
   ctx.fill();
 
-  var items = ['+5 Points', '+50 Points', 'Clear Data', 'Unlock All', 'UpScore', 'Close'];
+  var items = ['+5 Points', '+50 Points', 'Clear Data', 'Unlock All', 'UpScore', 'Params', 'Close'];
   for (var i = 0; i < items.length; i++) {
     var iy = py + 24 + i * 42;
     ctx.fillStyle = '#eee';
@@ -1361,6 +1361,103 @@ function getUploadData() {
   return { score: _upScore, pipes: Math.max(1, _upPipes), mode: _upMode };
 }
 
+// ==================== Debug 参数面板 ====================
+var DBG_PARAMS = [
+  { g: '道具', k: 'itemProb', n: '道具率', s: 0.05, fmt: '%' },
+  { g: '道具', k: 'backpackSlots', n: '背包格', s: 1, fmt: '' },
+  { g: '道具', k: 'itemDurations.slow', n: '减速持续(s)', s: 1, fmt: 's' },
+  { g: '蓄力', k: 'chargeMaxTime', n: '满蓄(s)', s: 0.05, fmt: 's' },
+  { g: '蓄力', k: 'chargeMaxVel', n: '满蓄速', s: 10, fmt: '' },
+  { g: '积分', k: 'pointsMaxPerGame', n: '单局上限', s: 5, fmt: '' },
+  { g: '物理', k: 'scrollSpeed', n: '管速', s: 10, fmt: '' },
+  { g: '物理', k: 'gravity', n: '重力', s: 20, fmt: '' },
+  { g: '绳索', k: 'ropeChargeLift', n: '蓄力拉升', s: 10, fmt: '' },
+];
+
+var _dbgParamScroll = 0;
+
+function drawDebugParamsPanel(ctx) {
+  var pw = 240, ph = C.H * 0.55, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, C.W, C.H);
+  ctx.fillStyle = '#fff'; C.roundRect(ctx, px, py, pw, ph, 16); ctx.fill();
+  ctx.fillStyle = '#333'; ctx.font = 'bold 13px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillText('数值调试', px + pw / 2, py + 22);
+
+  var rowH = 24, gTitleH = 14, rowY = py + 38;
+  var prevGroup = '';
+  for (var i = 0; i < DBG_PARAMS.length; i++) {
+    var p = DBG_PARAMS[i];
+    if (p.g !== prevGroup) {
+      prevGroup = p.g;
+      ctx.fillStyle = '#FF9800'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+      ctx.fillText(p.g, px + 16, rowY + 10 * 0.35);
+      rowY += gTitleH;
+    }
+    var val = p.k.split('.').reduce(function(o, kk) { return o[kk]; }, C.BALANCE);
+    var label = p.n + ': ' + (p.fmt === '%' ? (val * 100).toFixed(0) + '%' : val + p.fmt);
+    ctx.fillStyle = '#333'; ctx.font = '11px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText(label, px + 28, rowY + 10 + 11 * 0.35);
+    ctx.fillStyle = '#eee'; C.roundRect(ctx, px + pw - 76, rowY + 3, 24, 18, 4); ctx.fill();
+    ctx.fillStyle = '#eee'; C.roundRect(ctx, px + pw - 46, rowY + 3, 24, 18, 4); ctx.fill();
+    ctx.fillStyle = '#333'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('-', px + pw - 64, rowY + 13 + 13 * 0.35);
+    ctx.fillText('+', px + pw - 34, rowY + 13 + 13 * 0.35);
+    rowY += rowH;
+  }
+  // 还原按钮
+  rowY += 6;
+  ctx.fillStyle = '#FF9800';
+  C.roundRect(ctx, px + 40, rowY, pw - 80, 24, 12); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('还原默认值', px + pw / 2, rowY + 16);
+  ctx.textAlign = 'left';
+}
+
+function hitTestDebugParams(tx, ty, paneling) {
+  if (paneling !== 'debugParams') return null;
+  var pw = 240, ph = C.H * 0.55, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeDebugParams' };
+
+  var rowH = 24, gTitleH = 14, rowY = py + 38;
+  var prevGroup = '';
+  for (var i = 0; i < DBG_PARAMS.length; i++) {
+    var p2 = DBG_PARAMS[i];
+    if (p2.g !== prevGroup) { prevGroup = p2.g; rowY += gTitleH; }
+    if (tx >= px + pw - 76 && tx <= px + pw - 52 && ty >= rowY + 3 && ty <= rowY + 21)
+      return { action: 'dbgDec', idx: i };
+    if (tx >= px + pw - 46 && tx <= px + pw - 22 && ty >= rowY + 3 && ty <= rowY + 21)
+      return { action: 'dbgInc', idx: i };
+    rowY += rowH;
+  }
+  // 还原按钮
+  var btnY = rowY + 6;
+  if (tx >= px + 40 && tx <= px + pw - 40 && ty >= btnY && ty <= btnY + 24)
+    return { action: 'dbgReset' };
+  return null;
+}
+
+function handleParamsScroll(e) {
+  var ph2 = C.H * 0.6, py2 = (C.H - ph2) / 2, lt2 = py2 + 34, lh2 = ph2 - 74;
+  var rowH = 32, gTH = 18, tH = DBG_PARAMS.length * rowH + gTH;
+  for (var gi2 = 1; gi2 < DBG_PARAMS.length; gi2++) { if (DBG_PARAMS[gi2].g !== DBG_PARAMS[gi2-1].g) tH += gTH; }
+  var maxScroll = Math.max(0, tH - lh2 + 20);
+  if (e.touches && e.touches.length > 0) {
+    if (!_panelState.touched) { _panelState.touched = true; _panelState.startY = e.touches[0].clientY; _panelState.touchY = _panelState.startY; return true; }
+    var dy = _panelState.touchY - e.touches[0].clientY;
+    _panelState.scroll = Math.max(0, Math.min(_panelState.scroll + dy, maxScroll));
+    _panelState.touchY = e.touches[0].clientY;
+    _dbgParamScroll = _panelState.scroll;
+    return true;
+  }
+  if (!(e.touches && e.touches.length > 0)) {
+    var moved = Math.abs(_panelState.startY - _panelState.touchY);
+    _panelState.touched = false;
+    return moved <= 6; // true=点击, false=滚动过
+  }
+  return true;
+}
+
 function hitTestDebug(tx, ty, paneling) {
   if (!C.DEBUG) return null;
   var btnW = 56, btnH = 28, bx = C.W - btnW - 10, by = C.H - btnH - 10;
@@ -1368,11 +1465,11 @@ function hitTestDebug(tx, ty, paneling) {
     return { action: 'openDebug' };
   }
   if (paneling !== 'debug') return null;
-  var pw = 220, ph = 314, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 356, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeDebug' };
   var relY = ty - py - 24;
   var idx = Math.floor(relY / 42);
-  var actions = ['add5', 'add50', 'clear', 'unlockAll', 'upScore', 'closeDebug'];
+  var actions = ['add5', 'add50', 'clear', 'unlockAll', 'upScore', 'openParams', 'closeDebug'];
   if (idx >= 0 && idx < actions.length) return { action: actions[idx] };
   return null;
 }
@@ -1442,6 +1539,11 @@ module.exports = {
   drawUploadPanel: drawUploadPanel,
   hitTestUpload: hitTestUpload,
   getUploadData: getUploadData,
+  DBG_PARAMS: DBG_PARAMS,
+  drawDebugParamsPanel: drawDebugParamsPanel,
+  hitTestDebugParams: hitTestDebugParams,
+  _dbgParamScroll: _dbgParamScroll,
+  handleParamsScroll: handleParamsScroll,
   hitBackButton: hitBackButton,
   hitTestMenu: hitTestMenu,
   hitTestGameOver: hitTestGameOver,

@@ -3,7 +3,7 @@
 
 // ==================== 三套主题皮肤 ====================
 // 调试开关：发版时改 false 隐藏 调试 按钮
-var DEBUG = false;
+var DEBUG = true;
 
 var THEMES = {
   sakura: {
@@ -46,7 +46,7 @@ var THEMES = {
     acc:      { hat: ['#C8B8E8','#A898C8'], bow: ['#C090D0','#A080B8'], glasses: ['#3A2C4A','#555'],
                crown: ['#C8B8E8','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F0','#D0C0E8'],
                headphones: ['#555555','#C8B8E8'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   50
+    unlock:   30
   },
   ocean: {
     name: '海洋蓝',
@@ -67,7 +67,7 @@ var THEMES = {
     acc:      { hat: ['#88C8D8','#68A8B8'], bow: ['#70B0C8','#5898B0'], glasses: ['#2C3A4A','#555'],
                crown: ['#88C8D8','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#C8E0F0','#B0D0E8'],
                headphones: ['#555555','#88C8D8'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   80
+    unlock:   50
   },
   forest: {
     name: '森林绿',
@@ -88,7 +88,7 @@ var THEMES = {
     acc:      { hat: ['#78B868','#58A048'], bow: ['#60A850','#489040'], glasses: ['#2C4A28','#555'],
                crown: ['#78B868','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#B8E0B0','#A0D098'],
                headphones: ['#555555','#78B868'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   100
+    unlock:   70
   },
   sunset: {
     name: '日落橙',
@@ -109,7 +109,7 @@ var THEMES = {
     acc:      { hat: ['#F0A878','#E09060'], bow: ['#E89868','#D08050'], glasses: ['#4A3020','#555'],
                crown: ['#F0A878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8D0C0','#F0C0B0'],
                headphones: ['#555555','#F0A878'], star: ['#FFD700','#FFA040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   130
+    unlock:   90
   },
   lavender: {
     name: '薰衣草紫',
@@ -130,7 +130,7 @@ var THEMES = {
     acc:      { hat: ['#C4A8E0','#A888C8'], bow: ['#B890D8','#A078C0'], glasses: ['#3A2848','#555'],
                crown: ['#C4A8E0','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F4','#D0C0E8'],
                headphones: ['#555555','#C4A8E0'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   160
+    unlock:   110
   },
   mint: {
     name: '薄荷绿',
@@ -151,7 +151,7 @@ var THEMES = {
     acc:      { hat: ['#68C8A0','#48B088'], bow: ['#50B890','#389878'], glasses: ['#284838','#555'],
                crown: ['#68C8A0','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#A8E0C8','#90D8B0'],
                headphones: ['#555555','#68C8A0'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   200
+    unlock:   130
   },
   coral: {
     name: '珊瑚色',
@@ -172,7 +172,7 @@ var THEMES = {
     acc:      { hat: ['#F08878','#E07058'], bow: ['#E87868','#D06050'], glasses: ['#482820','#555'],
                crown: ['#F08878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8C0B0','#F0B0A0'],
                headphones: ['#555555','#F08878'], star: ['#FFD700','#FFA040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   230
+    unlock:   150
   },
   midnight: {
     name: '午夜蓝',
@@ -193,7 +193,7 @@ var THEMES = {
     acc:      { hat: ['#4A6FA5','#385888'], bow: ['#5B8BD4','#4A7AB8'], glasses: ['#D0D8E8','#888'],
                crown: ['#5B8BD4','#FFD700'], flower: ['#E0C8F0','#D0B8E8'], ribbon: ['#6A8FC0','#5B7DB0'],
                headphones: ['#A0B0C8','#5B8BD4'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   260
+    unlock:   180
   },
   rose: {
     name: '玫瑰金',
@@ -214,24 +214,87 @@ var THEMES = {
     acc:      { hat: ['#E8A898','#D08878'], bow: ['#D89880','#C08068'], glasses: ['#482820','#555'],
                crown: ['#E8A898','#FFD700'], flower: ['#F0A898','#F0B8A8'], ribbon: ['#F0C8B8','#E0B8A8'],
                headphones: ['#555555','#E8A898'], star: ['#FFD700','#FFC040'], halo: ['#FFEEDD','#FFD700'] },
-    unlock:   300
+    unlock:   220
   }
 };
 
 // ==================== 配饰系统 ====================
 var ACCESSORIES = {
   none:       { name: '素颜', cost: 0 },
-  hat:        { name: '小帽子', color1: '#FFB3B3', color2: '#F09898', cost: 15 },
-  bow:        { name: '蝴蝶结', color1: '#FF88A8', color2: '#FF6088', cost: 15 },
-  glasses:    { name: '小墨镜', color1: '#3A2A3A', color2: '#555555', cost: 15 },
-  crown:      { name: '皇冠', color1: '#FFB3B3', color2: '#FFD700', cost: 60 },
-  flower:     { name: '小花', color1: '#FF88A8', color2: '#FFC0CB', cost: 30 },
-  ribbon:     { name: '发带', color1: '#FFD4E0', color2: '#FFB3C8', cost: 30 },
-  headphones: { name: '耳机', color1: '#555555', color2: '#FFB3B3', cost: 50 },
-  star:       { name: '星星头饰', color1: '#FFD700', color2: '#FFA500', cost: 60 },
-  halo:       { name: '天使光环', color1: '#FFEEDD', color2: '#FFD700', cost: 80 }
+  hat:        { name: '小帽子', color1: '#FFB3B3', color2: '#F09898', cost: 10 },
+  bow:        { name: '蝴蝶结', color1: '#FF88A8', color2: '#FF6088', cost: 10 },
+  glasses:    { name: '小墨镜', color1: '#3A2A3A', color2: '#555555', cost: 10 },
+  crown:      { name: '皇冠', color1: '#FFB3B3', color2: '#FFD700', cost: 40 },
+  flower:     { name: '小花', color1: '#FF88A8', color2: '#FFC0CB', cost: 20 },
+  ribbon:     { name: '发带', color1: '#FFD4E0', color2: '#FFB3C8', cost: 20 },
+  headphones: { name: '耳机', color1: '#555555', color2: '#FFB3B3', cost: 30 },
+  star:       { name: '星星头饰', color1: '#FFD700', color2: '#FFA500', cost: 40 },
+  halo:       { name: '天使光环', color1: '#FFEEDD', color2: '#FFD700', cost: 60 }
 };
 var ACC_KEYS = ['none', 'hat', 'bow', 'glasses', 'ribbon', 'flower', 'headphones', 'crown', 'star', 'halo'];
+
+// ==================== 数值平衡 ====================
+var BALANCE = {
+  // 星星
+  starProb: 0.6,          // 管道星星生成概率
+  dangerStarProb: 0.2,    // 星星是危险星的概率
+  starBaseScore: 2,       // 普通星星基础分
+  starBonusScore: 4,      // 危险星星基础分
+
+  // 道具
+  itemProb: 0.15,         // 管道道具生成概率
+  itemProbDebug: 0.8,     // debug模式道具概率
+  backpackSlots: 2,       // 背包槽位
+  backpackSlotsDebug: 4,  // debug模式背包槽位
+  itemDurations: {        // 道具持续时间(秒)
+    shield: 99,            // 护盾(直至消耗)
+    magnet: 5,
+    slow: 12,
+    double: 10
+  },
+
+  // 积分
+  pointsPerPipe: 1,       // 每根管道基础分
+  pointsMaxPerGame: 20,   // 单局积分奖励上限
+  pointsBase: 2,          // 积分奖励起算分数
+  pointsStep: 5,          // 每N分+1积分
+
+  // 蓄力
+  chargeMaxTime: 0.25,     // 满蓄所需秒数
+  chargeMinVel: -350,      // 轻点最小速度
+  chargeMaxVel: -580,      // 满蓄最大速度
+  chargeMultiMax: 5,       // 最大倍率
+
+  // 勋章
+  medalBronze: 10,         // 铜牌分数线
+  medalSilver: 20,         // 银牌分数线
+  medalGold: 30,           // 金牌分数线
+
+  // 组合技
+  comboInvincibleInterval: 3, // 每N连击无敌
+  comboInvincibleBase: 2,     // 基础无敌时间
+  comboInvincibleStep: 0.5,   // 每段无敌增量
+  comboInvincibleMax: 3.5,    // 最大无敌时间
+  comboBonusGreat: 1,     // GREAT 加分
+  comboBonusAmazing: 2,   // AMAZING 加分
+  comboBonusFantastic: 3, // FANTASTIC 加分
+  comboBonusLegendary: 4, // LEGENDARY 加分
+  comboMilestone5: 15,    // 5连击奖励
+  comboMilestone7: 30,    // 7连击奖励
+  comboBonusThreshold: 7, // 连击额外积分门槛
+  comboBonusPer: 2,       // 每N连击+1分
+
+  // 物理
+  gravity: 980,           // 重力加速度(px/s²)
+  terminalVelocity: 550,  // 终端速度
+  scrollSpeed: 120,       // 管道基础速度
+
+  // 绳索(双人)
+  ropeMaxLength: 0.25,    // 最大绳长(屏宽比)
+  ropeStiffness: 12,      // 绳刚度
+  ropeDeadPullRatio: 0.75,// 死鸟拉力占比
+  ropeChargeLift: 120,    // 蓄力拉升系数
+};
 
 // ==================== 纪念卡文案 ====================
 var MEMORIAL_MSGS = [
@@ -249,12 +312,12 @@ var MEMORIAL_MSGS = [
 var STATE = { MENU: 0, PLAYING: 1, DEAD: 2, MEMORIAL: 3 };
 
 // ==================== 物理常量 ====================
-var GRAVITY_PX = 980;
-var CHARGE_MIN_VELOCITY = -350;  // 轻点最小跳
-var CHARGE_MAX_VELOCITY = -580;  // 满蓄全力跳
-var CHARGE_MAX_TIME = 0.25;       // 满蓄所需秒数
-var TERMINAL_V = 550;
-var SCROLL_SPEED = 120;
+var GRAVITY_PX = BALANCE.gravity;
+var CHARGE_MIN_VELOCITY = BALANCE.chargeMinVel;
+var CHARGE_MAX_VELOCITY = BALANCE.chargeMaxVel;
+var CHARGE_MAX_TIME = BALANCE.chargeMaxTime;
+var TERMINAL_V = BALANCE.terminalVelocity;
+var SCROLL_SPEED = BALANCE.scrollSpeed;
 
 // ==================== 布局（setLayout 后可用） ====================
 var backBtn = { x: 0, y: 0, w: 66, h: 28 };
@@ -346,6 +409,7 @@ function seededRandom(s) {
 module.exports = {
   DEBUG: DEBUG,
   THEMES: THEMES,
+  BALANCE: BALANCE,
   ACCESSORIES: ACCESSORIES,
   ACC_KEYS: ACC_KEYS,
   MEMORIAL_MSGS: MEMORIAL_MSGS,

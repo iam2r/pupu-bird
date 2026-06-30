@@ -10,6 +10,7 @@ var Memorial = require('./memorial.js');
 var UI = require('./ui.js');
 var Sound = require('./sound.js');
 var Star = require('./star.js');
+var Item = require('./item.js');
 
 // ---- 游戏运行时状态 ----
 var state, birdY, birdVY, pipes, score, best, pipesPassed;
@@ -58,6 +59,12 @@ var birdA = null, birdB = null;
 var _activeTouchMap = {};     // { touchId: 'A'|'B' }
 var _activeCountA = 0, _activeCountB = 0;
 var _splitLineTimer = 0;      // 双人开场分屏线倒计时
+var autoItem = false;         // 自动使用道具
+
+// ---- 道具系统 ----
+var items = [];              // 漂浮盲盒 [{x,y,collected,type,opened,phase}]
+var backpack = [];           // 道具背包 [type, type] 最多两格
+var activeItem = null;       // 当前激活道具 {type, timer}
 
 function _createBirdState(bx) {
   return {
@@ -225,6 +232,7 @@ function gotoMenu() {
   isTwoPlayer = false;
   birdA = null; birdB = null;
   _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
+  items = []; backpack = []; ; activeItem = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   state = C.STATE.MENU;
 }
@@ -247,6 +255,7 @@ function startGame() {
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
+  items = []; backpack = []; activeItem = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
   if (isTwoPlayer) {
@@ -349,6 +358,7 @@ function restartGame() {
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
+  items = []; backpack = []; activeItem = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
   if (isTwoPlayer) {
@@ -567,6 +577,12 @@ function update(dt) {
     return;
   }
 
+  // 激活道具计时
+  if (activeItem) {
+    activeItem.timer -= s;
+    if (activeItem.timer <= 0) activeItem = null;
+  }
+
   // ---- 双人模式：独立物理 + 绳索约束 + 碰撞 ----
   if (isTwoPlayer) {
     if (_splitLineTimer > 0) _splitLineTimer = Math.max(0, _splitLineTimer - s);
@@ -614,6 +630,10 @@ function update(dt) {
         var isDanger = Math.random() < 0.2;
         var offY = isDanger ? (Math.random() - 0.5) * C.PIPE_GAP * 0.9 : (Math.random() - 0.5) * C.PIPE_GAP * 0.5;
         stars.push(Star.createStar(pipes[pipes.length - 1].x + C.PIPE_WIDTH + 40, gapCY2 + offY, isDanger));
+      }
+      if (Math.random() < (C.DEBUG ? C.BALANCE.itemProbDebug : C.BALANCE.itemProb)) {
+        var ig2 = pipes[pipes.length - 1].gapCenter;
+        items.push(Item.createItem(pipes[pipes.length - 1].x + C.PIPE_WIDTH + 45, ig2 + (Math.random() - 0.5) * C.PIPE_GAP * 0.6));
       }
     }
 
@@ -729,19 +749,25 @@ function update(dt) {
       }
       stars.push(Star.createStar(newPipe.x + C.PIPE_WIDTH + 40, gapCY + offsetY, isDangerStar));
     }
+    if (Math.random() < (C.DEBUG ? C.BALANCE.itemProbDebug : C.BALANCE.itemProb)) {
+      items.push(Item.createItem(newPipe.x + C.PIPE_WIDTH + 45, gapCY + (Math.random() - 0.5) * C.PIPE_GAP * 0.6));
+    }
   }
 
-  // 管道移动 & 计分（无敌时加速）
-  var scrollSpeed = invincibleTimer > 0 ? C.SCROLL_SPEED * 1.5 : C.SCROLL_SPEED;
+  // 管道移动 & 计分
+  var scrollSpeed = C.SCROLL_SPEED;
+  if (invincibleTimer > 0) scrollSpeed *= 1.5;
+  if (activeItem && activeItem.type === 'slow') scrollSpeed *= 0.15;
   var scroll = scrollSpeed * s;
   var t = C.getT(currentTheme);
   for (var i = 0; i < pipes.length; i++) {
     var p = pipes[i];
     p.x -= scroll;
+    var mul = (activeItem && activeItem.type === 'double') ? 2 : 1;
     if (Pipe.hasPassedPipe(p, C.BIRD_X)) {
       p.passed = true;
       pipesPassed++;
-      score += 1 * chargeMultiplier;
+      score += 1 * chargeMultiplier * mul;
       chargeMultiplier = 1;
       chargeBoostTimer = 0;
       Sound.playScore();
@@ -750,8 +776,22 @@ function update(dt) {
   }
   while (pipes.length > 0 && pipes[0].x + C.PIPE_WIDTH < -10) pipes.shift();
 
+  // 磁铁吸引星星
+  if (activeItem && activeItem.type === 'magnet') {
+    for (var si = 0; si < stars.length; si++) {
+      var dx = C.BIRD_X - stars[si].x;
+      var dy = birdY - stars[si].y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < C.W * 0.35 && dist > 1) {
+        stars[si].x += dx / dist * scroll * 4;
+        stars[si].y += dy / dist * scroll * 4;
+      }
+    }
+  }
+
   // 星星拾取检测
   var birdR = C.BIRD_SIZE / 2;
+  var mul2 = (activeItem && activeItem.type === 'double') ? 2 : 1;
   for (var si = 0; si < stars.length; si++) {
     stars[si].x -= scroll;
     if (Star.checkPickup(stars[si], C.BIRD_X, birdY, birdR)) {
@@ -762,7 +802,7 @@ function update(dt) {
       else if (combo >= 5) starScore += 3;
       else if (combo >= 3) starScore += 2;
       else if (combo >= 2) starScore += 1;
-      score += starScore;
+      score += starScore * mul2;
       combo++;
       Sound.playCombo(combo);
       // 里程碑奖励
@@ -773,16 +813,35 @@ function update(dt) {
     }
   }
 
-  // 碰撞检测（无敌时不检测）
+  // 碰撞检测（无敌或护盾时不检测）
   if (invincibleTimer <= 0) {
     if (birdY < C.GAME_TOP || birdY > C.GAME_BOTTOM) { die(); return; }
     for (i = 0; i < pipes.length; i++) {
-      if (Pipe.checkCollision(pipes[i], C.BIRD_X, birdY, birdR)) { die(); return; }
+      if (Pipe.checkCollision(pipes[i], C.BIRD_X, birdY, birdR)) {
+        if (activeItem && activeItem.type === 'shield') { activeItem = null; invincibleTimer = 0.4; }
+        else { die(); return; }
+      }
     }
   }
   // 二次防护：die 后不走后续逻辑
   if (state !== C.STATE.PLAYING) return;
 
+  // 道具移动 & 拾取
+  for (var ii = 0; ii < items.length; ii++) {
+    items[ii].x -= scroll;
+    if (Item.checkPickup(items[ii], C.BIRD_X, birdY, birdR)) {
+      items[ii].collected = true;
+      if (autoItem) {
+        activeItem = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'slow' ? C.BALANCE.itemDurations.slow : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield };
+      } else if (backpack.length < C.BALANCE.backpackSlots) {
+        backpack.push(items[ii].type);
+      }
+    }
+  }
+  // 清除屏幕外道具/星星
+  for (ii = items.length - 1; ii >= 0; ii--) {
+    if (items[ii].x < -20 || items[ii].collected) items.splice(ii, 1);
+  }
   // 移除屏幕外星星（未收集的星星漏掉 → 断连击）
   for (si = stars.length - 1; si >= 0; si--) {
     if (stars[si].x < -20) {
@@ -806,10 +865,35 @@ function draw(ctx) {
   // 死亡后地面纹理冻结
   UI.drawGround(ctx, t, state === C.STATE.DEAD ? deathGroundOffset : undefined);
 
-  // 星星在 ground 之后画，避免被遮挡
+  // 星星/道具在 ground 之后画
   if (state === C.STATE.PLAYING || state === C.STATE.DEAD) {
     for (var si = 0; si < stars.length; si++) {
       if (!stars[si].collected) Star.drawStar(ctx, stars[si], t);
+    }
+    for (var ii = 0; ii < items.length; ii++) {
+      if (!items[ii].collected) Item.drawItem(ctx, items[ii]);
+    }
+  }
+  // 减速视觉提示
+  if (state === C.STATE.PLAYING && activeItem && activeItem.type === 'slow') {
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#2196F3';
+    ctx.fillRect(0, 0, C.W, C.H);
+    ctx.restore();
+  }
+
+  // 道具背包 + 激活提示
+  if (state === C.STATE.PLAYING) {
+    Item.drawBackpack(ctx, backpack, t, autoItem);
+    if (activeItem) {
+      var aIt = Item.ITEMS[activeItem.type];
+      ctx.fillStyle = aIt.color;
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(aIt.name + ' ' + Math.ceil(activeItem.timer) + 's', C.W / 2, C.GROUND_Y - 50);
+      ctx.textAlign = 'left';
     }
   }
 
@@ -825,12 +909,14 @@ function draw(ctx) {
       avatarEnabled: avatarEnabled,
       avatarImg: avatarImg,
       userAvatarUrl: userAvatarUrl,
+      isTwoPlayer: isTwoPlayer,
       isTwoPlayer: isTwoPlayer
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
     if (paneling === 'debug') UI.drawDebugPanel(ctx);
     if (paneling === 'upscore') UI.drawUploadPanel(ctx);
+    if (paneling === 'debugParams') UI.drawDebugParamsPanel(ctx);
     UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
     // ---- 双人模式绘制 ----
@@ -1113,6 +1199,27 @@ function onTouch(e) {
     return;
   }
 
+  // 参数面板（仅松手触发）
+  if (paneling === 'debugParams' && state === C.STATE.MENU && !(e.touches && e.touches.length > 0)) {
+    var dpAct = UI.hitTestDebugParams(tx, ty, paneling);
+    if (dpAct) {
+      if (dpAct.action === 'closeDebugParams') { paneling = null; return; }
+      if (dpAct.action === 'dbgDec' || dpAct.action === 'dbgInc') {
+        var dp = UI.DBG_PARAMS[dpAct.idx];
+        C.BALANCE[dp.k] = Math.max(0, C.BALANCE[dp.k] + (dpAct.action === 'dbgInc' ? (dp.s || 1) : -(dp.s || 1)));
+        return;
+      }
+      if (dpAct.action === 'dbgReset') {
+        C.BALANCE.itemProb = 0.15; C.BALANCE.backpackSlots = 2;
+        C.BALANCE.chargeMaxTime = 0.25; C.BALANCE.chargeMaxVel = -580;
+        C.BALANCE.pointsMaxPerGame = 20; C.BALANCE.scrollSpeed = 120;
+        C.BALANCE.gravity = 980; C.BALANCE.ropeChargeLift = 120;
+        return;
+      }
+    }
+    return;
+  }
+
   // 上传面板（仅松手触发，防双击）
   if (paneling === 'upscore' && state === C.STATE.MENU && !(e.touches && e.touches.length > 0)) {
     var upAct = UI.hitTestUpload(tx, ty, paneling);
@@ -1167,6 +1274,10 @@ function onTouch(e) {
       if (dbg.action === 'upScore') {
         paneling = 'upscore'; panelJustOpened = true;
         UI.initUploadPanel(370, 85, 0);
+        return;
+      }
+      if (dbg.action === 'openParams') {
+        paneling = 'debugParams'; panelJustOpened = true;
         return;
       }
     }
@@ -1251,6 +1362,7 @@ function onTouch(e) {
       unlockedAccessories: unlockedAccessories,
       avatarEnabled: avatarEnabled,
       userAvatarUrl: userAvatarUrl,
+      isTwoPlayer: isTwoPlayer,
       isTwoPlayer: isTwoPlayer
     });
 
@@ -1287,7 +1399,6 @@ function onTouch(e) {
       toggleAvatar();
     } else if (mAct.action === 'toggleMode') {
       isTwoPlayer = !isTwoPlayer;
-      console.log('[Mode] toggle -> isTwoPlayer:', isTwoPlayer);
     } else if (mAct.action === 'startGame') {
       console.log('[Start] isTwoPlayer:', isTwoPlayer);
       startGame();
@@ -1295,6 +1406,22 @@ function onTouch(e) {
       showLeaderboardOverlay();
     }
     return;
+  }
+
+  // AUTO 按钮
+  if (state === C.STATE.PLAYING && !(e.touches && e.touches.length > 0) && Item.hitTestAuto(tx, ty)) {
+    autoItem = !autoItem;
+    return;
+  }
+
+  // 道具背包点击
+  if (state === C.STATE.PLAYING && backpack.length > 0 && !(e.touches && e.touches.length > 0)) {
+    var slotIdx = Item.hitTestBackpack(tx, ty, backpack);
+    if (slotIdx >= 0) {
+      var usedType = backpack.splice(slotIdx, 1)[0];
+      activeItem = { type: usedType, timer: usedType === "double" ? C.BALANCE.itemDurations.double : usedType === "slow" ? C.BALANCE.itemDurations.slow : usedType === "magnet" ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield };
+      return;
+    }
   }
 
   // PLAYING：长按蓄力 / 点击飞行
