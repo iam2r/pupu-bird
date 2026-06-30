@@ -159,116 +159,95 @@ function drawStartScreen(ctx, t, stateData) {
   var logoY = titleY + 200;
   var bigR = C.BIRD_SIZE * 3;
   var bob = Math.sin(Date.now() * 0.004) * 4;
-  Bird.drawLogoBird(ctx, C.W / 2, logoY, bigR, t, currentAccessory, bob, avatarEnabled ? avatarImg : null);
+  Bird.drawLogoBird(ctx, C.W / 2, logoY, bigR, t, currentAccessory, bob);
 
-  var btnRowY = logoY + 200;
-  var circleR = 15;
-  var spacing = 10;
-  var totalW = circleR * 2 * 4 + spacing * 3;
-  var startX = (C.W - totalW) / 2;
-
-  // 1. 主题按钮 — Canvas色块圆圈（bird色填充 + accent色描边，跟随主题色）
-  var btn1CX = startX + circleR;
-  var isThemeLocked = !unlockedThemes[currentTheme];
-  // 外圈边框 — 主题色
-  ctx.strokeStyle = t.accent;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  // 内圈色块
-  ctx.fillStyle = isThemeLocked ? '#D5D5D5' : t.bird;
-  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR - 2, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = isThemeLocked ? '#AAAAAA' : t.accent;
-  ctx.lineWidth = isThemeLocked ? 1 : 1.5;
-  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR - 2, 0, Math.PI * 2); ctx.stroke();
-  if (isThemeLocked) {
-    // 小锁图标
-    ctx.strokeStyle = '#999999';
-    ctx.lineWidth = 1.2;
-    var lw = 7, lh = 6, ly = btnRowY - 1;
-    ctx.beginPath();
-    ctx.arc(btn1CX, ly, lw / 2, Math.PI, 0, false);
-    ctx.stroke();
-    ctx.strokeRect(btn1CX - lw / 2, ly, lw, lh);
-  }
-
-  // 2. 头像按钮 — 微信头像 / 人物图标（居中，最显眼，跟随主题色）
-  var btn2CX = startX + circleR * 3 + spacing;
+  // ---- 头像登录按钮（引导隐私授权） ----
+  var avatarBtnR = 22;
+  var avatarBtnY = logoY + bigR + avatarBtnR + 14;
+  var hasAvatar = stateData.userAvatarUrl && stateData.avatarImg && stateData.avatarImg.width > 0;
   ctx.save();
-  ctx.globalAlpha = avatarEnabled ? 0.2 : 0.18;
+  ctx.globalAlpha = 0.18;
   ctx.fillStyle = t.accent;
-  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(C.W / 2, avatarBtnY, avatarBtnR, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = t.accent;
-  ctx.lineWidth = avatarEnabled ? 2 : 1.5;
-  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  // 未授权时：右上角 "+" 引导授权
-  if (!avatarEnabled) {
-    var badgeR = 5;
-    var badgeCX = btn2CX + 9, badgeCY = btnRowY - 9;
+  ctx.lineWidth = hasAvatar ? 2 : 1.5;
+  ctx.beginPath(); ctx.arc(C.W / 2, avatarBtnY, avatarBtnR, 0, Math.PI * 2); ctx.stroke();
+  if (!hasAvatar) {
+    var badgeR = 6, badgeCX = C.W / 2 + 11, badgeCY = avatarBtnY - 11;
     ctx.fillStyle = t.surfaceBg;
     ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = t.accent;
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = t.accent; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = t.accent;
     ctx.fillRect(badgeCX - 2.5, badgeCY - 0.5, 5, 1);
     ctx.fillRect(badgeCX - 0.5, badgeCY - 2.5, 1, 5);
-  }
-  if (avatarEnabled && avatarImg && avatarImg.width > 0) {
-    // 显示头像缩略图
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(btn2CX, btnRowY, circleR - 2, 0, Math.PI * 2);
-    ctx.clip();
-    var thumbScale = ((circleR - 2) * 2) / Math.min(avatarImg.width, avatarImg.height);
-    ctx.drawImage(avatarImg, btn2CX - avatarImg.width * thumbScale / 2, btnRowY - avatarImg.height * thumbScale / 2, avatarImg.width * thumbScale, avatarImg.height * thumbScale);
-    ctx.restore();
   } else {
-    // 人物剪影图标 — 跟随主题色
-    var iconX = btn2CX, iconY = btnRowY;
     ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = t.accent;
-    ctx.beginPath();
-    ctx.arc(iconX, iconY - 4, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(iconX, iconY + 7, 8, 6, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(C.W / 2, avatarBtnY, avatarBtnR - 2, 0, Math.PI * 2); ctx.clip();
+    var ts = ((avatarBtnR - 2) * 2) / Math.min(stateData.avatarImg.width, stateData.avatarImg.height);
+    ctx.drawImage(stateData.avatarImg, C.W / 2 - stateData.avatarImg.width * ts / 2, avatarBtnY - stateData.avatarImg.height * ts / 2, stateData.avatarImg.width * ts, stateData.avatarImg.height * ts);
     ctx.restore();
   }
 
-  // 3. 排行榜按钮 — 主题色底圆 + 竖条降序图标，跟随主题色
+  // ---- 三功能按钮（主题 / 排行榜 / 配饰） ----
+  var btnRowY = avatarBtnY + avatarBtnR + 38;
+  var circleR = 15, spacing = 10;
+  var totalW = circleR * 2 * 3 + spacing * 2;
+  var startX = (C.W - totalW) / 2;
+
+  // 1. 主题按钮
+  var btn1CX = startX + circleR;
+  var isThemeLocked = !unlockedThemes[currentTheme];
+  ctx.strokeStyle = t.accent; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  ctx.fillStyle = isThemeLocked ? '#D5D5D5' : t.bird;
+  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, 10, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = isThemeLocked ? '#AAAAAA' : t.accent;
+  ctx.lineWidth = isThemeLocked ? 1 : 1.5;
+  ctx.beginPath(); ctx.arc(btn1CX, btnRowY, 10, 0, Math.PI * 2); ctx.stroke();
+  if (isThemeLocked) {
+    ctx.strokeStyle = '#999999'; ctx.lineWidth = 1.2;
+    var lw = 7, lh = 6, ly = btnRowY - 1;
+    ctx.beginPath(); ctx.arc(btn1CX, ly, lw / 2, Math.PI, 0, false); ctx.stroke();
+    ctx.strokeRect(btn1CX - lw / 2, ly, lw, lh);
+  }
+
+  // 2. 排行榜按钮
+  var btn2CX = startX + circleR * 3 + spacing;
+  ctx.save();
+  ctx.globalAlpha = 0.18; ctx.fillStyle = t.accent;
+  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = t.accent; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(btn2CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
+  drawRankBars(ctx, btn2CX, btnRowY, t.accent);
+
+  // 3. 配饰按钮
   var btn3CX = startX + circleR * 5 + spacing * 2;
   ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.18; ctx.fillStyle = t.accent;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
   ctx.restore();
-  ctx.strokeStyle = t.accent;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = t.accent; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.arc(btn3CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  // 三条竖方块，越来越低（排行图标）
-  drawRankBars(ctx, btn3CX, btnRowY, t.accent);
-
-  // 4. 配饰按钮 — 主题色底圆 + 微型小鸟(半径10px)戴配饰，跟随主题色
-  var btn4CX = startX + circleR * 7 + spacing * 3;
   ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.fillStyle = t.accent;
-  ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = t.accent;
-  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.arc(btn4CX, btnRowY, circleR, 0, Math.PI * 2); ctx.stroke();
-  var mr = 10, bx = btn4CX, by = btnRowY;
-  ctx.save();
-  ctx.translate(bx, by);
-  Bird.drawBirdBody(ctx, mr, t, false);
-  Bird.drawAccessoryOnCtx(ctx, 0, 0, mr, t, currentAccessory);
+  ctx.translate(btn3CX, btnRowY);
+  var prePhase = Date.now() * 0.006;
+  var preBob = Math.sin(prePhase) * 1;
+  var preFlap = Math.sin(prePhase * 1.6) * 0.1;
+  ctx.translate(0, preBob);
+  Bird.drawBirdBody(ctx, 10, t, false, preFlap);
+  Bird.drawAccessoryOnCtx(ctx, 0, 0, 10, t, currentAccessory);
   ctx.restore();
 
-  // ---- Start 按钮（跟随主题色，带阴影+描边） ----
+  // 按钮上方标签
+  var lblY = btnRowY - circleR - 8;
+  C.drawText(ctx, '主题', btn1CX, lblY, 9, t.textSec, false);
+  C.drawText(ctx, '排行', btn2CX, lblY, 9, t.textSec, false);
+  C.drawText(ctx, '配饰', btn3CX, lblY, 9, t.textSec, false);
+
+  // ---- Start 按钮 ----
   var startBtnW = 140, startBtnH = 40;
   var startBtnX = (C.W - startBtnW) / 2;
   var startBtnCY = btnRowY + 50;
@@ -527,12 +506,16 @@ function drawAccessoryPanel(ctx, t, stateData) {
     var birdCX = px + pw * 0.56, birdCY = rowY + rowH / 2;
     ctx.save();
     ctx.translate(birdCX, birdCY);
+    var accPhase = Date.now() * 0.005 + i * 0.5;
+    var accBob = Math.sin(accPhase) * 1.5;
+    var accFlap = Math.sin(accPhase * 1.6) * 0.1;
+    ctx.translate(0, accBob);
     if (unlocked) {
-      Bird.drawBirdBody(ctx, 10, t, false);
+      Bird.drawBirdBody(ctx, 10, t, false, accFlap);
       Bird.drawAccessoryOnCtx(ctx, 0, 0, 10, t, key);
     } else {
       ctx.globalAlpha = 0.35;
-      Bird.drawBirdBody(ctx, 10, t, false);
+      Bird.drawBirdBody(ctx, 10, t, false, accFlap);
       Bird.drawAccessoryOnCtx(ctx, 0, 0, 10, t, key);
       ctx.globalAlpha = 1;
     }
@@ -790,7 +773,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   var birdCY = cardY + cardH * 0.38, bigR = C.BIRD_SIZE * 2.2;
   var avatarEnabled = stateData.avatarEnabled;
   var avatarImg = stateData.avatarImg;
-  Bird.drawLogoBird(ctx, C.W / 2, birdCY, bigR, t, currentAccessory, 0, avatarEnabled ? avatarImg : null);
+  Bird.drawLogoBird(ctx, C.W / 2, birdCY, bigR, t, currentAccessory, 0, );
 
   // 分数 + 管道双数据
   var scoreAreaY = cardY + cardH * 0.62;
@@ -937,40 +920,42 @@ function hitTestMenu(tx, ty, stateData) {
   }
 
   // ---- 正常菜单命中（面板未打开） ----
-  // 按钮行坐标：与 drawStartScreen 同步
   var titleY = C.GAME_TOP + 40;
   var logoY = titleY + 200;
-  var btnRowY = logoY + 200;
+
+  // 头像登录按钮
+  var avatarBtnR2 = 18;
+  var avatarBtnY2 = logoY + C.BIRD_SIZE * 3 + avatarBtnR2 + 14;
+  if (Math.sqrt((tx - C.W/2)*(tx - C.W/2) + (ty - avatarBtnY2)*(ty - avatarBtnY2)) < avatarBtnR2 + 4) {
+    return { action: 'toggleAvatar' };
+  }
+
+  // 三功能按钮行
+  var btnRowY = avatarBtnY2 + avatarBtnR2 + 38;
   var circleR = 15;
   var spacing = 10;
-  var totalW = circleR * 2 * 4 + spacing * 3;
+  var totalW = circleR * 2 * 3 + spacing * 2;
   var startX = (C.W - totalW) / 2;
 
-  // 1. 主题按钮 → 打开主题面板
+  // 1. 主题按钮
   var btn1CX = startX + circleR;
   if (Math.sqrt((tx-btn1CX)*(tx-btn1CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
     return { action: 'openPanel', panel: 'theme' };
   }
 
-  // 2. 头像按钮 → 授权/切换头像纹理（居中）
+  // 2. 排行榜按钮
   var btn2CX = startX + circleR * 3 + spacing;
   if (Math.sqrt((tx-btn2CX)*(tx-btn2CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
-    return { action: 'toggleAvatar' };
-  }
-
-  // 3. 排行榜按钮 → 展示好友排行榜
-  var btn3CX = startX + circleR * 5 + spacing * 2;
-  if (Math.sqrt((tx-btn3CX)*(tx-btn3CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
     return { action: 'showLeaderboard' };
   }
 
-  // 4. 配饰按钮 → 打开配饰面板
-  var btn4CX = startX + circleR * 7 + spacing * 3;
-  if (Math.sqrt((tx-btn4CX)*(tx-btn4CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
+  // 3. 配饰按钮
+  var btn3CX = startX + circleR * 5 + spacing * 2;
+  if (Math.sqrt((tx-btn3CX)*(tx-btn3CX) + (ty-btnRowY)*(ty-btnRowY)) < circleR + 4) {
     return { action: 'openPanel', panel: 'accessory' };
   }
 
-  // 5. Start 按钮（btnRowY + 50，140x40 矩形检测）
+  // 4. Start 按钮
   var startBtnW = 140, startBtnH = 40;
   var startBtnX = (C.W - startBtnW) / 2;
   var startBtnCY = btnRowY + 50;
@@ -985,12 +970,10 @@ function hitTestMenu(tx, ty, stateData) {
   var tabStartX = (C.W - totalTabW) / 2;
   var tabCY = startBtnCY + 53;
   if (ty >= tabCY - tabH / 2 && ty <= tabCY + tabH / 2) {
-    // 单人 tab
     if (tx >= tabStartX && tx <= tabStartX + tabW) {
-      if (!stateData.isTwoPlayer) return null; // 已经是单人
+      if (!stateData.isTwoPlayer) return null;
       return { action: 'toggleMode' };
     }
-    // 双人 tab
     if (tx >= tabStartX + tabW + tabGap && tx <= tabStartX + totalTabW) {
       if (stateData.isTwoPlayer) return null; // 已经是双人
       return { action: 'toggleMode' };
@@ -1239,14 +1222,14 @@ function drawDebugButton(ctx) {
 
 function drawDebugPanel(ctx) {
   if (!C.DEBUG) return;
-  var pw = 220, ph = 230, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 314, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, C.W, C.H);
   ctx.fillStyle = '#fff';
   C.roundRect(ctx, px, py, pw, ph, 16);
   ctx.fill();
 
-  var items = ['+5 Points', '+50 Points', 'Clear Data', 'Unlock All', 'Close'];
+  var items = ['+5 Points', '+50 Points', 'Clear Data', 'Unlock All', 'UpScore', 'Close'];
   for (var i = 0; i < items.length; i++) {
     var iy = py + 24 + i * 42;
     ctx.fillStyle = '#eee';
@@ -1261,6 +1244,123 @@ function drawDebugPanel(ctx) {
   ctx.textAlign = 'left';
 }
 
+// ==================== 分数上传面板 ====================
+var _upScore = 0, _upPipes = 0, _upMode = 0;
+
+function initUploadPanel(score, pipes, mode) {
+  _upScore = score || 0;
+  _upPipes = pipes || 1;
+  _upMode = mode || 0;
+}
+
+function drawUploadPanel(ctx) {
+  var pw = 220, ph = 220, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  ctx.fillStyle = 'rgba(0,0,0,0.4)';
+  ctx.fillRect(0, 0, C.W, C.H);
+  ctx.fillStyle = '#fff';
+  C.roundRect(ctx, px, py, pw, ph, 16);
+  ctx.fill();
+
+  var cy = py + 32;
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 14px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('分数上报', px + pw / 2, cy + 14 * 0.35);
+
+  // Score row
+  cy += 34;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#333'; ctx.font = '13px sans-serif';
+  ctx.fillText('Score: ' + _upScore, px + pw / 2, cy);
+  ctx.fillStyle = '#eee';
+  C.roundRect(ctx, px + 20, cy - 11, 28, 22, 6); ctx.fill();
+  C.roundRect(ctx, px + pw - 48, cy - 11, 28, 22, 6); ctx.fill();
+  ctx.fillStyle = '#333'; ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('-', px + 34, cy);
+  ctx.fillText('+', px + pw - 34, cy);
+
+  // Pipes row
+  cy += 38;
+  ctx.fillStyle = '#333'; ctx.font = '13px sans-serif';
+  ctx.fillText('Pipes: ' + _upPipes, px + pw / 2, cy);
+  ctx.fillStyle = '#eee';
+  C.roundRect(ctx, px + 20, cy - 11, 28, 22, 6); ctx.fill();
+  C.roundRect(ctx, px + pw - 48, cy - 11, 28, 22, 6); ctx.fill();
+  ctx.fillStyle = '#333'; ctx.font = 'bold 16px sans-serif';
+  ctx.fillText('-', px + 34, cy);
+  ctx.fillText('+', px + pw - 34, cy);
+
+  // Mode row — 双 tab
+  cy += 38;
+  var tabW3 = 56, tabH3 = 22, tabGap3 = 4;
+  var tabTotal3 = tabW3 * 2 + tabGap3;
+  var tabX3 = px + (pw - tabTotal3) / 2;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (var t3 = 0; t3 < 2; t3++) {
+    var isActive3 = (t3 === _upMode);
+    var t3x = tabX3 + t3 * (tabW3 + tabGap3);
+    if (isActive3) {
+      ctx.fillStyle = '#4CAF50';
+      C.roundRect(ctx, t3x, cy - tabH3 / 2, tabW3, tabH3, 11); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif';
+    } else {
+      ctx.fillStyle = '#ddd';
+      C.roundRect(ctx, t3x, cy - tabH3 / 2, tabW3, tabH3, 11); ctx.fill();
+      ctx.fillStyle = '#999'; ctx.font = '12px sans-serif';
+    }
+    ctx.fillText(t3 === 0 ? '单人' : '双人', t3x + tabW3 / 2, cy);
+  }
+
+  // Upload button
+  cy += 42;
+  ctx.fillStyle = '#4CAF50';
+  C.roundRect(ctx, px + 40, cy - 11, pw - 80, 28, 14); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif';
+  ctx.fillText('上报', px + pw / 2, cy);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+}
+
+function hitTestUpload(tx, ty, paneling) {
+  if (paneling !== 'upscore') return null;
+  var pw = 220, ph = 220, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeUpload' };
+
+  var rowBase = py + 32;
+  // Score +/- (row 0, cy = rowBase + 34, button area: cy ± 11)
+  var r0cy = rowBase + 34;
+  if (ty >= r0cy - 11 && ty <= r0cy + 11) {
+    if (tx >= px + 20 && tx <= px + 48) return { action: 'upScoreDec' };
+    if (tx >= px + pw - 48 && tx <= px + pw - 20) return { action: 'upScoreInc' };
+  }
+  // Pipes +/- (row 1)
+  var r1cy = rowBase + 72;
+  if (ty >= r1cy - 11 && ty <= r1cy + 11) {
+    if (tx >= px + 20 && tx <= px + 48) return { action: 'upPipesDec' };
+    if (tx >= px + pw - 48 && tx <= px + pw - 20) return { action: 'upPipesInc' };
+  }
+  // Mode tabs (row 2)
+  var tabW3 = 56, tabH3 = 22, tabGap3 = 4, tabTotal3 = tabW3 * 2 + tabGap3;
+  var tabX3 = px + (pw - tabTotal3) / 2;
+  var r2cy = rowBase + 110;
+  if (ty >= r2cy - tabH3 / 2 && ty <= r2cy + tabH3 / 2) {
+    if (tx >= tabX3 && tx <= tabX3 + tabW3 && _upMode !== 0) return { action: 'upModeToggle' };
+    if (tx >= tabX3 + tabW3 + tabGap3 && tx <= tabX3 + tabTotal3 && _upMode !== 1) return { action: 'upModeToggle' };
+  }
+  // Upload (row 3)
+  var r3cy = rowBase + 152;
+  if (ty >= r3cy - 14 && ty <= r3cy + 14 && tx >= px + 40 && tx <= px + pw - 40) return { action: 'upDoUpload' };
+
+  return null;
+}
+
+function getUploadData() {
+  return { score: _upScore, pipes: Math.max(1, _upPipes), mode: _upMode };
+}
+
 function hitTestDebug(tx, ty, paneling) {
   if (!C.DEBUG) return null;
   var btnW = 56, btnH = 28, bx = C.W - btnW - 10, by = C.H - btnH - 10;
@@ -1268,11 +1368,11 @@ function hitTestDebug(tx, ty, paneling) {
     return { action: 'openDebug' };
   }
   if (paneling !== 'debug') return null;
-  var pw = 220, ph = 230, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 314, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeDebug' };
   var relY = ty - py - 24;
   var idx = Math.floor(relY / 42);
-  var actions = ['add5', 'add50', 'clear', 'unlockAll', 'closeDebug'];
+  var actions = ['add5', 'add50', 'clear', 'unlockAll', 'upScore', 'closeDebug'];
   if (idx >= 0 && idx < actions.length) return { action: actions[idx] };
   return null;
 }
@@ -1338,6 +1438,10 @@ module.exports = {
   drawMemorialScreen: drawMemorialScreen,
   drawDebugButton: drawDebugButton,
   drawDebugPanel: drawDebugPanel,
+  initUploadPanel: initUploadPanel,
+  drawUploadPanel: drawUploadPanel,
+  hitTestUpload: hitTestUpload,
+  getUploadData: getUploadData,
   hitBackButton: hitBackButton,
   hitTestMenu: hitTestMenu,
   hitTestGameOver: hitTestGameOver,

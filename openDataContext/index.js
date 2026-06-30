@@ -291,6 +291,21 @@ function render() {
   var selfRank = d.selfRank;
   var friends = d.friends;
 
+  // debug: 打印榜单数据
+  console.log('[Rank] mode:', lbMode, 'loaded:', d.loaded, 'total:', friends.length, 'top10:', displayList.length, 'selfRank:', selfRank);
+  for (var di = 0; di < displayList.length; di++) {
+    var fr = displayList[di];
+    console.log('  #' + (di + 1), fr.nickname, 'raw:', fr.bestScore, 'display:', (fr.bestScore / 100).toFixed(2), fr.isMe ? '(我)' : '');
+  }
+  if (showSelfBelow && selfRank > 0) {
+    for (var fi = 0; fi < friends.length; fi++) {
+      if (friends[fi].isMe) {
+        console.log('  #' + selfRank, friends[fi].nickname, 'raw:', friends[fi].bestScore, 'display:', (friends[fi].bestScore / 100).toFixed(2), '(我)');
+        break;
+      }
+    }
+  }
+
   // 无数据
   if (displayList.length === 0 && !showSelfBelow) {
     ctx.fillStyle = '#AAAAAA';

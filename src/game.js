@@ -82,7 +82,7 @@ function _applyRopeConstraint(s) {
 }
 
 function _dieBird(bird, other) {
-  if (!bird.alive) return;
+  if (!isTwoPlayer || !bird.alive) return;
   bird.alive = false;
   if (bird.isCharging) {
     if (bird === birdA) Sound.stopCharge(0); else Sound.stopCharge2(0);
@@ -95,6 +95,8 @@ function _dieBird(bird, other) {
 }
 
 function _finalizeDualDeath() {
+  if (!isTwoPlayer) { console.log('[finalizeDualDeath] BLOCKED - isTwoPlayer false'); return; }
+  console.log('[finalizeDualDeath] called! isTwoPlayer:', isTwoPlayer, 'birdA.alive:', birdA && birdA.alive, 'birdB.alive:', birdB && birdB.alive);
   state = C.STATE.DEAD;
   shakeTimer = 0; deathAnimPhase = 0;
   deathGroundOffset = (Date.now() * 0.06) % 40;
@@ -111,18 +113,12 @@ function _finalizeDualDeath() {
   earned = Math.min(earned, 20);
   if (earned > 0) { points += earned; Storage.savePoints(points); wx.showToast({ title: '+' + earned + ' 💎', icon: 'none', duration: 1200 }); }
   if (combo >= 5) score += Math.floor(combo / 2);
-  var keys = Object.keys(C.THEMES);
-  var newUnlocks = [];
-  for (var ki = 0; ki < keys.length; ki++) {
-    var k = keys[ki];
-    if (!unlockedThemes[k] && points >= C.THEMES[k].unlock) { unlockedThemes[k] = true; newUnlocks.push(C.THEMES[k].name); }
-  }
-  if (newUnlocks.length > 0) { Storage.saveData(buildSaveData()); wx.showToast({ title: '解锁：' + newUnlocks.join('、'), icon: 'none', duration: 2500 }); }
-  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
   Memorial.prepareShareImage();
   if (score > 0) {
     var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
-    if (composite > rankingBest) { rankingBest = composite; Storage.saveData(buildSaveData()); uploadToCloud(); }
+    console.log('[Upload2P] score:', score, 'pipes:', pipesPassed, 'composite:', composite, 'rankingBest2P:', rankingBest2P, 'upload:', composite > rankingBest2P);
+    if (composite > rankingBest2P) { rankingBest2P = composite; Storage.saveData(buildSaveData()); uploadToCloud(1); }
   }
 }
 
@@ -234,6 +230,7 @@ function gotoMenu() {
 }
 
 function startGame() {
+  console.log('[startGame] isTwoPlayer:', isTwoPlayer, 'birdA:', !!birdA);
   birdY = C.GAME_TOP + C.GAME_H / 2;
   birdVY = 0;
   pipes = [];
@@ -268,6 +265,7 @@ function flap(velocity) {
 }
 
 function die() {
+  console.log('[die] isTwoPlayer:', isTwoPlayer, 'score:', score, 'pipes:', pipesPassed);
   if (isTwoPlayer) return; // 双人模式由 _dieBird / _finalizeDualDeath 处理
   state = C.STATE.DEAD;
   shakeTimer = 0;
@@ -295,21 +293,6 @@ function die() {
   if (score > best) best = score;
   Storage.saveData(buildSaveData());
 
-  // 检查解锁新主题（基于累计积分，完全由配置驱动）
-  var newUnlocks = [];
-  var keys = Object.keys(C.THEMES);
-  for (var i = 0; i < keys.length; i++) {
-    var k = keys[i];
-    if (!unlockedThemes[k] && points >= C.THEMES[k].unlock) {
-      unlockedThemes[k] = true;
-      newUnlocks.push(C.THEMES[k].name);
-    }
-  }
-  if (newUnlocks.length > 0) {
-    Storage.saveData(buildSaveData());
-    wx.showToast({ title: '解锁：' + newUnlocks.join('、'), icon: 'none', duration: 2500 });
-  }
-
   // 积分奖励：2分起奖，基础1 + 每5分+1，连击加成，单局上限20
   var earned = 0;
   if (score >= 2) {
@@ -331,7 +314,7 @@ function die() {
   }
 
   // 预渲染纪念卡 + 提前生成分享图
-  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
   Memorial.prepareShareImage();
 
   // 计算排行榜复合分 & 上传云存储
@@ -339,10 +322,11 @@ function die() {
     // 复合分 = score*100 + floor(score/pipesPassed)
     // 前段是主排序（1分=100），末2位是效率tiebreaker（管道均分）
     var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
-    if (composite > rankingBest2P) {
-      rankingBest2P = composite;
+    console.log('[Upload] score:', score, 'pipes:', pipesPassed, 'composite:', composite, 'rankingBest:', rankingBest, 'upload:', composite > rankingBest);
+    if (composite > rankingBest) {
+      rankingBest = composite;
       Storage.saveData(buildSaveData());
-      uploadToCloud(1);
+      uploadToCloud();
     }
   }
 }
@@ -421,15 +405,11 @@ function showUserInfoButton() {
   // 计算头像按钮在屏幕上的位置（与 ui.js drawStartScreen 同步）
   var titleY = C.GAME_TOP + 40;
   var logoY = titleY + 200;
-  var btnRowY = logoY + 200;
-  var circleR = 15;
-  var spacing = 12;
-  var totalW = circleR * 2 * 3 + spacing * 2;
-  var startX = (C.W - totalW) / 2;
-  var btnCX = startX + circleR * 3 + spacing; // 中间按钮（头像）
-  var btnCY = btnRowY;
+  var avatarBtnY = logoY + C.BIRD_SIZE * 3 + 22 + 14;
+  var btnCX = C.W / 2;
+  var btnCY = avatarBtnY;
 
-  var btnSize = 40;
+  var btnSize = 48;
   _userInfoButton = wx.createUserInfoButton({
     type: 'text',
     text: '',
@@ -466,14 +446,7 @@ function destroyUserInfoButton() {
 }
 
 function toggleAvatar() {
-  if (userAvatarUrl) {
-    // 已有头像：切换开关
-    avatarEnabled = !avatarEnabled;
-    Storage.saveData(buildSaveData());
-    wx.showToast({ title: avatarEnabled ? '头像纹理已开启' : '头像纹理已关闭', icon: 'none', duration: 1500 });
-    return;
-  }
-
+  if (userAvatarUrl) return; // 已登录，无需重复
   // 未授权：先检查
   wx.getSetting({
     success: function(s) {
@@ -516,6 +489,7 @@ function init(canvas, ctx, params) {
   avatarEnabled = data.avatarEnabled || false;
   rankingBest = data.rankingBest || 0;
   rankingBest2P = data.rankingBest2P || 0;
+  console.log('[Init] rankingBest:', rankingBest, 'rankingBest2P:', rankingBest2P, 'best:', best);
 
   // 官方排行榜
   try { rankManager = wx.getRankManager(); } catch(e) { rankManager = null; }
@@ -856,6 +830,7 @@ function draw(ctx) {
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
     if (paneling === 'debug') UI.drawDebugPanel(ctx);
+    if (paneling === 'upscore') UI.drawUploadPanel(ctx);
     UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
     // ---- 双人模式绘制 ----
@@ -878,8 +853,8 @@ function draw(ctx) {
         }
       });
       // 画鸟 + 绳索
-      Bird.drawBird(ctx, birdA.y, birdA.vy, state, 0, t, currentAccessory, birdA.chargeRatio, avatarEnabled ? avatarImg : null, birdA.x, !birdA.alive);
-      Bird.drawBird(ctx, birdB.y, birdB.vy, state, 0, t, currentAccessory, birdB.chargeRatio, avatarEnabled ? avatarImg : null, birdB.x, !birdB.alive);
+      Bird.drawBird(ctx, birdA.y, birdA.vy, state, 0, t, currentAccessory, birdA.chargeRatio,birdA.x, !birdA.alive);
+      Bird.drawBird(ctx, birdB.y, birdB.vy, state, 0, t, currentAccessory, birdB.chargeRatio,birdB.x, !birdB.alive);
       UI.drawRope(ctx, birdA, birdB, t);
       // 开场分屏分隔线动画
       if (_splitLineTimer > 0) {
@@ -981,7 +956,7 @@ function draw(ctx) {
       ctx.fill();
       ctx.restore();
     }
-    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
+    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, );
     // 倍率标在鸟上方
     if (chargeMultiplier > 1) {
       ctx.save();
@@ -1065,18 +1040,17 @@ function draw(ctx) {
     ctx.fillStyle = t.deathDim;
     ctx.fillRect(0, 0, C.W, C.H);
     if (isTwoPlayer && birdA && birdB) {
-      Bird.drawBird(ctx, birdA.y, birdA.vy, state, shakeTimer, t, currentAccessory, 0, avatarEnabled ? avatarImg : null, birdA.x, true);
-      Bird.drawBird(ctx, birdB.y, birdB.vy, state, shakeTimer, t, currentAccessory, 0, avatarEnabled ? avatarImg : null, birdB.x, true);
+      Bird.drawBird(ctx, birdA.y, birdA.vy, state, shakeTimer, t, currentAccessory, 0,birdA.x, true);
+      Bird.drawBird(ctx, birdB.y, birdB.vy, state, shakeTimer, t, currentAccessory, 0,birdB.x, true);
       UI.drawRope(ctx, birdA, birdB, t);
     } else {
-      Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
+      Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, );
     }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawGameOverPanel(ctx, t, {
       score: score,
       medalLevel: medalLevel,
       best: best,
-      unlockedThemes: unlockedThemes,
       isTwoPlayer: isTwoPlayer
     });
   } else if (state === C.STATE.MEMORIAL) {
@@ -1114,12 +1088,12 @@ function onTouch(e) {
     if (mAct.action === 'authAvatar') {
       fetchUserAvatar();
     } else if (mAct.action === 'shareCard') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
       Memorial.shareMemorialCard();
     } else if (mAct.action === 'shareTimeline') {
       wx.showToast({ title: '请点击右上角 ··· → 分享到朋友圈', icon: 'none', duration: 2000 });
     } else if (mAct.action === 'shareImage') {
-      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+      Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
       Memorial.shareImage();
     } else if (mAct.action === 'replay') {
       restartGame();
@@ -1135,6 +1109,31 @@ function onTouch(e) {
       state = C.STATE.MEMORIAL;
     } else if (dAct.action === 'replay') {
       restartGame();
+    }
+    return;
+  }
+
+  // 上传面板（仅松手触发，防双击）
+  if (paneling === 'upscore' && state === C.STATE.MENU && !(e.touches && e.touches.length > 0)) {
+    var upAct = UI.hitTestUpload(tx, ty, paneling);
+    if (upAct) {
+      if (upAct.action === 'closeUpload') { paneling = null; return; }
+      if (upAct.action === 'upScoreDec') { var d0 = UI.getUploadData(); UI.initUploadPanel(Math.max(0, d0.score - 1), d0.pipes, d0.mode); return; }
+      if (upAct.action === 'upScoreInc') { var d1 = UI.getUploadData(); UI.initUploadPanel(d1.score + 1, d1.pipes, d1.mode); return; }
+      if (upAct.action === 'upPipesDec') { var d2 = UI.getUploadData(); UI.initUploadPanel(d2.score, Math.max(1, d2.pipes - 1), d2.mode); return; }
+      if (upAct.action === 'upPipesInc') { var d3 = UI.getUploadData(); UI.initUploadPanel(d3.score, d3.pipes + 1, d3.mode); return; }
+      if (upAct.action === 'upModeToggle') { var d4 = UI.getUploadData(); UI.initUploadPanel(d4.score, d4.pipes, d4.mode === 0 ? 1 : 0); return; }
+      if (upAct.action === 'upDoUpload') {
+        var d5 = UI.getUploadData();
+        var comp = d5.score * 100 + Math.floor(d5.score / Math.max(d5.pipes, 1));
+        console.log('[UpScore] score:', d5.score, 'pipes:', d5.pipes, 'mode:', d5.mode, 'composite:', comp);
+        if (d5.mode === 1) { rankingBest2P = comp; } else { rankingBest = comp; }
+        Storage.saveData(buildSaveData());
+        uploadToCloud(d5.mode);
+        wx.showToast({ title: '已上报 mode=' + d5.mode + ' comp=' + comp, icon: 'none' });
+        paneling = null;
+        return;
+      }
     }
     return;
   }
@@ -1163,6 +1162,11 @@ function onTouch(e) {
         for (var ti = 0; ti < tk.length; ti++) unlockedThemes[tk[ti]] = true;
         for (var ai = 0; ai < C.ACC_KEYS.length; ai++) unlockedAccessories[C.ACC_KEYS[ai]] = true;
         Storage.saveData(buildSaveData());
+        return;
+      }
+      if (dbg.action === 'upScore') {
+        paneling = 'upscore'; panelJustOpened = true;
+        UI.initUploadPanel(370, 85, 0);
         return;
       }
     }
@@ -1283,7 +1287,9 @@ function onTouch(e) {
       toggleAvatar();
     } else if (mAct.action === 'toggleMode') {
       isTwoPlayer = !isTwoPlayer;
+      console.log('[Mode] toggle -> isTwoPlayer:', isTwoPlayer);
     } else if (mAct.action === 'startGame') {
+      console.log('[Start] isTwoPlayer:', isTwoPlayer);
       startGame();
     } else if (mAct.action === 'showLeaderboard') {
       showLeaderboardOverlay();
