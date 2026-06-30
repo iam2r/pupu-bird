@@ -5,7 +5,7 @@ var C = require('./config.js');
 
 // 创建管道对象
 function createPipe(x, gapCenter) {
-  return { x: x, gapCenter: gapCenter, passed: false, petalSpawned: false };
+  return { x: x, gapCenter: gapCenter, passed: false, passedByA: false, passedByB: false, petalSpawned: false };
 }
 
 // 计算随机缺口中心（支持每日挑战种子）
@@ -63,10 +63,18 @@ function hasPassedPipe(p, birdX) {
   return !p.passed && p.x + C.PIPE_WIDTH < birdX;
 }
 
+// 双人模式：判断指定鸟是否通过管道
+function hasPassedPipeBird(p, birdX, birdKey) {
+  if (birdKey === 'A') return !p.passedByA && p.x + C.PIPE_WIDTH < birdX;
+  if (birdKey === 'B') return !p.passedByB && p.x + C.PIPE_WIDTH < birdX;
+  return false;
+}
+
 module.exports = {
   createPipe: createPipe,
   randomGapCenter: randomGapCenter,
   drawPipe: drawPipe,
   checkCollision: checkCollision,
-  hasPassedPipe: hasPassedPipe
+  hasPassedPipe: hasPassedPipe,
+  hasPassedPipeBird: hasPassedPipeBird
 };

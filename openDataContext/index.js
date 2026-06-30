@@ -8,13 +8,20 @@ var W = 375;
 var H = 667;
 var dpr = 1;
 var visible = false;
-var friends = [];
-var myData = null;
+var lbMode = 0; // 0=单人榜 1=双人榜
+var accentColor = '#FFB3B3';
+var accentDarkColor = '#FF9F8F';
 var scrollOffset = 0;
 var maxScroll = 0;
 var touchStartY = 0;
 var touchLastY = 0;
 var isTouching = false;
+
+// 双数据集：打开时一次性拉取，切换 tab 纯本地切换
+var dataSolo = { friends: [], myData: null, displayList: [], selfRank: -1, showSelfBelow: false, loaded: false };
+var dataDuo = { friends: [], myData: null, displayList: [], selfRank: -1, showSelfBelow: false, loaded: false };
+
+function _activeData() { return lbMode === 1 ? dataDuo : dataSolo; }
 
 // 头像图片缓存 { openId: Image }
 var avatarCache = {};
@@ -24,20 +31,36 @@ var avatarLoaded = {};
 
 wx.onMessage(function(msg) {
   if (msg.type === 'show') {
-    console.log('[OpenData] 收到show消息:', JSON.stringify(msg));
     dpr = msg.dpr || 1;
     W = sharedCanvas.width / dpr || msg.W || 375;
     H = sharedCanvas.height / dpr || msg.H || 667;
-    // 保存主域传入的本地数据作为兜底
+    lbMode = msg.mode || 0;
+    accentColor = msg.accent || '#FFB3B3';
+    accentDarkColor = msg.accentDark || '#FF9F8F';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     visible = true;
     scrollOffset = 0;
-    fetchAndRender();
+    // 一次性拉取两个榜单数据
+    dataSolo.loaded = false; dataDuo.loaded = false;
+    dataSolo.friends = []; dataDuo.friends = [];
+    fetchBothAndRender();
+  } else if (msg.type === 'switchMode') {
+    // 纯本地切换，无网络请求
+    lbMode = msg.mode || 0;
+    accentColor = msg.accent || accentColor;
+    accentDarkColor = msg.accentDark || accentDarkColor;
+    scrollOffset = 0;
+    render();
   } else if (msg.type === 'hide') {
     visible = false;
     ctx.clearRect(0, 0, W, H);
   } else if (msg.type === 'refresh' && visible) {
-    fetchAndRender();
+    if (msg.accent) accentColor = msg.accent;
+    if (msg.accentDark) accentDarkColor = msg.accentDark;
+    // 刷新当前榜（新分数上传后）
+    var cur = _activeData();
+    cur.loaded = false; cur.friends = [];
+    fetchOne(lbMode === 1 ? 'bestScore2P' : 'bestScore', cur, function() { render(); });
   } else if (msg.type === 'touch' && visible) {
     handleTouch(msg);
   }
@@ -64,90 +87,81 @@ function handleTouch(msg) {
 
 // ==================== 数据获取与排序 ====================
 
-function fetchAndRender() {
-  // 并行获取好友数据和自己数据
+// ==================== 数据获取 — 双榜并行 ====================
+
+function fetchBothAndRender() {
+  // 并行拉单人+双人数据
+  fetchOne('bestScore', dataSolo, function() {
+    fetchOne('bestScore2P', dataDuo, function() {
+      render();
+    });
+  });
+  render(); // 先显示加载态
+}
+
+function fetchOne(key, dataset, cb) {
   var fetchedFriends = null;
   var fetchedMyData = null;
-  var doneCount = 0;
+  var done = 0;
 
-  function checkDone() {
-    doneCount++;
-    if (doneCount === 2) {
-      processAndRender(fetchedFriends, fetchedMyData);
-    }
+  function check() {
+    done++;
+    if (done < 2) return;
+    processData(fetchedFriends, fetchedMyData, key, dataset);
+    dataset.loaded = true;
+    if (cb) cb();
   }
 
   wx.getFriendCloudStorage({
-    keyList: ['bestScore'],
-    success: function(res) {
-      fetchedFriends = res.data || [];
-      console.log('[OpenData] getFriendCloudStorage 成功, 好友数:', fetchedFriends.length, JSON.stringify(fetchedFriends));
-      checkDone();
-    },
-    fail: function(err) {
-      console.log('[OpenData] getFriendCloudStorage 失败:', JSON.stringify(err));
-      fetchedFriends = [];
-      checkDone();
-    }
+    keyList: [key],
+    success: function(res) { fetchedFriends = res.data || []; check(); },
+    fail: function() { fetchedFriends = []; check(); }
   });
 
   wx.getUserCloudStorage({
-    keyList: ['bestScore'],
-    success: function(res) {
-      fetchedMyData = parseMyData(res);
-      console.log('[OpenData] getUserCloudStorage 成功, 我的数据:', JSON.stringify(fetchedMyData), '原始:', JSON.stringify(res));
-      checkDone();
-    },
-    fail: function(err) {
-      console.log('[OpenData] getUserCloudStorage 失败:', JSON.stringify(err));
-      fetchedMyData = null;
-      checkDone();
-    }
+    keyList: [key],
+    success: function(res) { fetchedMyData = parseMy(res, key); check(); },
+    fail: function() { fetchedMyData = null; check(); }
   });
 }
 
-function parseMyData(res) {
+function parseMy(res, key) {
   try {
-    // getUserCloudStorage 返回 res.KVDataList（不是 res.data.KVDataList）
     var kv = res.KVDataList || [];
-    var bs = 0;
     for (var i = 0; i < kv.length; i++) {
       try {
-        var v = JSON.parse(kv[i].value);
-        if (kv[i].key === 'bestScore') bs = v.wxgame ? v.wxgame.score : 0;
+        if (kv[i].key === key) {
+          var v = JSON.parse(kv[i].value);
+          return { bestScore: v.wxgame ? v.wxgame.score : 0 };
+        }
       } catch(e) {}
     }
-    return { bestScore: bs };
-  } catch(e) {
-    return null;
-  }
+  } catch(e) {}
+  return { bestScore: 0 };
 }
 
-function processAndRender(rawFriends, my) {
-  console.log('[OpenData] processAndRender, 好友原始数据:', rawFriends.length, '条, 我的数据:', JSON.stringify(my));
-  myData = my;
-  friends = [];
+function processData(rawFriends, my, key, dataset) {
+  dataset.myData = my;
+  dataset.friends = [];
   var selfInFriends = false;
 
   for (var i = 0; i < rawFriends.length; i++) {
     var f = rawFriends[i];
     var kv = f.KVDataList || [];
     var bestScore = 0;
-
     for (var j = 0; j < kv.length; j++) {
       try {
-        var v = JSON.parse(kv[j].value);
-        if (kv[j].key === 'bestScore') bestScore = v.wxgame ? v.wxgame.score : 0;
+        if (kv[j].key === key) {
+          var v = JSON.parse(kv[j].value);
+          bestScore = v.wxgame ? v.wxgame.score : 0;
+        }
       } catch(e) {}
     }
-
     if (bestScore > 0) {
       var isMe = my && bestScore === my.bestScore;
       if (isMe) selfInFriends = true;
-      // openId 可能为空，用 avatarUrl 兜底做缓存key
-      var cacheKey = f.openId || f.avatarUrl || 'unknown';
-      friends.push({
-        cacheKey: cacheKey,
+      dataset.friends.push({
+        cacheKey: f.openId || f.avatarUrl || 'unknown',
         nickname: f.nickname || '微信用户',
         avatarUrl: f.avatarUrl || '',
         bestScore: bestScore,
@@ -156,49 +170,25 @@ function processAndRender(rawFriends, my) {
     }
   }
 
-  console.log('[OpenData] selfInFriends:', selfInFriends, 'friends:', friends.length);
-
-  sortAndRender();
-}
-
-// Top 10 显示列表 + 自排名信息
-var displayList = [];
-var selfRank = -1;      // 自己的排名（1-based）
-var showSelfBelow = false; // 自己不在 top 10 时底部追加
-
-function sortAndRender() {
-  // 排序：复合分降序
-  friends.sort(function(a, b) {
-    return b.bestScore - a.bestScore;
-  });
-
-  // 找到自己的排名
-  selfRank = -1;
-  for (var i = 0; i < friends.length; i++) {
-    if (friends[i].isMe) { selfRank = i + 1; break; }
+  // 排序
+  dataset.friends.sort(function(a, b) { return b.bestScore - a.bestScore; });
+  dataset.selfRank = -1;
+  for (var k = 0; k < dataset.friends.length; k++) {
+    if (dataset.friends[k].isMe) { dataset.selfRank = k + 1; break; }
   }
+  dataset.displayList = dataset.friends.slice(0, 10);
+  dataset.showSelfBelow = dataset.selfRank > 10;
 
-  // Top 10
-  displayList = friends.slice(0, 10);
-
-  // 自己不在 top 10 则底部单独显示
-  showSelfBelow = selfRank > 10;
-
-  console.log('[OpenData] 总排行:', friends.length, '人, Top10:', displayList.length, '自己排名:', selfRank, '底部显示:', showSelfBelow);
-
-  // 预加载头像
-  preloadAvatars();
-  render();
+  preloadAvatars(dataset);
 }
 
 // ==================== 头像加载 ====================
 
-function preloadAvatars() {
-  var list = displayList.slice();
-  if (showSelfBelow && selfRank > 0) {
-    // 找到自己那行
-    for (var i = 0; i < friends.length; i++) {
-      if (friends[i].isMe) { list.push(friends[i]); break; }
+function preloadAvatars(dataset) {
+  var list = dataset.displayList.slice();
+  if (dataset.showSelfBelow && dataset.selfRank > 0) {
+    for (var i = 0; i < dataset.friends.length; i++) {
+      if (dataset.friends[i].isMe) { list.push(dataset.friends[i]); break; }
     }
   }
   for (var i = 0; i < list.length; i++) {
@@ -231,7 +221,7 @@ function loadAvatar(cacheKey, url) {
 // ==================== 渲染 ====================
 
 function render() {
-  console.log('[OpenData] render, visible:', visible, 'W:', W, 'H:', H, 'friends:', friends.length);
+  console.log('[OpenData] render, visible:', visible, 'mode:', lbMode);
   ctx.clearRect(0, 0, W, H);
 
   if (!visible) return;
@@ -262,12 +252,28 @@ function render() {
   roundRectTop(px, py, pw, 50, borderRadius);
   ctx.fill();
 
-  // 标题
-  ctx.fillStyle = '#333333';
-  ctx.font = 'bold 16px sans-serif';
+  // 标题栏 — 双 tab 切换（单人 | 双人）
+  var tabW2 = 60, tabH2 = 24, tabGap2 = 6;
+  var tabTotalW = tabW2 * 2 + tabGap2;
+  var tabX2 = px + (pw - tabTotalW) / 2;
+  var tabY2 = py + 13;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('好友排行榜', W / 2, py + 27);
+  for (var ti = 0; ti < 2; ti++) {
+    var isActive = (ti === lbMode);
+    var tabX = tabX2 + ti * (tabW2 + tabGap2);
+    if (isActive) {
+      ctx.fillStyle = accentColor;
+      roundRect(tabX, tabY2, tabW2, tabH2, 12);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 12px sans-serif';
+    } else {
+      ctx.fillStyle = '#AAAAAA';
+      ctx.font = '12px sans-serif';
+    }
+    ctx.fillText(ti === 0 ? '单人' : '双人', tabX + tabW2 / 2, tabY2 + tabH2 / 2);
+  }
 
   // 关闭按钮 ✕（与主题面板位置一致）
   var closeCX = px + pw - 22, closeCY = py + 18;
@@ -279,19 +285,24 @@ function render() {
   ctx.textBaseline = 'middle';
   ctx.fillText('✕', closeCX, closeCY);
 
+  var d = _activeData();
+  var displayList = d.displayList;
+  var showSelfBelow = d.showSelfBelow;
+  var selfRank = d.selfRank;
+  var friends = d.friends;
+
   // 无数据
   if (displayList.length === 0 && !showSelfBelow) {
     ctx.fillStyle = '#AAAAAA';
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('暂无好友数据', W / 2, py + ph / 2);
-    ctx.fillText('多玩几局吧~', W / 2, py + ph / 2 + 28);
+    ctx.fillText(d.loaded ? '暂无数据' : '加载中…', W / 2, py + ph / 2);
     return;
   }
 
   var rowH = 52;
-  var footerH = 40; // 底部排名条高度
-  var selfGapH = showSelfBelow ? rowH + 12 : 0; // 自己行 + 分隔间距
+  var footerH = 40;
+  var selfGapH = showSelfBelow ? rowH + 12 : 0;
   var bottomH = selfGapH + footerH;
   var listTop = py + 56;
   var listBottom = py + ph - bottomH;

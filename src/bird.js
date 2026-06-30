@@ -218,10 +218,22 @@ function drawBirdBody(ctx, r, t, dead, avatarImg) {
   }
 
   // 瞳孔（半透明，透出底下头像纹理）
-  ctx.globalAlpha = 0.55;
-  ctx.fillStyle = '#3A2A3A';
-  ctx.beginPath(); ctx.arc(r * 0.4, -r * 0.25, r * 0.14, 0, Math.PI * 2); ctx.fill();
-  ctx.globalAlpha = 1;
+  if (dead) {
+    // 死亡 X_X 眼
+    ctx.globalAlpha = 0.7;
+    ctx.strokeStyle = '#3A2A3A';
+    ctx.lineWidth = r * 0.06;
+    ctx.lineCap = 'round';
+    var ex = r * 0.35, ey = -r * 0.25, es = r * 0.11;
+    ctx.beginPath(); ctx.moveTo(ex - es, ey - es); ctx.lineTo(ex + es, ey + es); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ex + es, ey - es); ctx.lineTo(ex - es, ey + es); ctx.stroke();
+    ctx.globalAlpha = 1;
+  } else {
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#3A2A3A';
+    ctx.beginPath(); ctx.arc(r * 0.4, -r * 0.25, r * 0.14, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
   // 鸟喙
   ctx.fillStyle = t.birdBeak;
   ctx.beginPath(); ctx.moveTo(r * 0.7, -r * 0.25); ctx.lineTo(r * 1.7, r * 0.15); ctx.lineTo(r * 0.7, r * 0.5); ctx.fill();
@@ -229,8 +241,10 @@ function drawBirdBody(ctx, r, t, dead, avatarImg) {
 }
 
 // ==================== 游戏小鸟 ====================
-function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarImg) {
+function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarImg, birdX, isDead) {
   chargeRatio = chargeRatio || 0;
+  birdX = birdX || C.BIRD_X;
+  if (isDead === undefined) isDead = (state === C.STATE.DEAD);
   var r = C.BIRD_SIZE / 2;
   var shakeX = 0, shakeY = 0;
   if (shakeTimer > 0) {
@@ -238,34 +252,59 @@ function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, ch
     shakeY = (Math.random() - 0.5) * shakeTimer * 12;
   }
   ctx.save();
-  ctx.translate(C.BIRD_X + shakeX, birdY + shakeY);
-  var angle = state === C.STATE.DEAD ? Math.PI / 2 : Math.max(-0.5, Math.min(0.5, birdVY / 600));
+  ctx.translate(birdX + shakeX, birdY + shakeY);
+  // 死亡：速度驱动旋转(坠→弹→停)，存活：俯仰角跟随速度
+  var angle;
+  if (isDead) {
+    var absV = Math.abs(birdVY);
+    angle = birdVY > 0 ? Math.min(Math.PI * 0.48, absV / 400) : -Math.min(0.3, absV / 800);
+  } else {
+    angle = Math.max(-0.5, Math.min(0.5, birdVY / 600));
+  }
   ctx.rotate(angle);
 
   // 蓄力视觉：翅膀抖动 + 能量涟漪
   if (chargeRatio > 0.01) {
     var beatRate = 15 + chargeRatio * 55; // 15→70Hz 抖动频率
-    
-    // 能量涟漪（从内向外扩散的圆环）
-    var rippleCount = Math.floor(chargeRatio * 5) + 2;
+
+    // 能量涟漪（三层：深色轮廓 → 白色光环 → 主题色外晕）
+    var rippleCount = Math.floor(chargeRatio * 4) + 2;
     for (var ri = 0; ri < rippleCount; ri++) {
-      var ripplePhase = ((Date.now() * 0.004 + ri * 0.6) % 1);
-      var rippleR = r * (0.8 + ripplePhase * 1.5);
-      ctx.globalAlpha = chargeRatio * 0.7 * Math.max(0, 1 - ripplePhase);
+      var ripplePhase = ((Date.now() * 0.004 + ri * 0.55) % 1);
+      var rippleR = r * (0.7 + ripplePhase * 1.6);
+      var fadeAlpha = Math.max(0, 1 - ripplePhase);
+      // 1. 深色轮廓环（亮色背景下提供对比）
+      ctx.globalAlpha = chargeRatio * 0.35 * fadeAlpha;
+      ctx.strokeStyle = t.accentDark;
+      ctx.lineWidth = r * 0.28;
+      ctx.beginPath();
+      ctx.arc(0, 0, rippleR, 0, Math.PI * 2);
+      ctx.stroke();
+      // 2. 白色光环
+      ctx.globalAlpha = chargeRatio * 0.7 * fadeAlpha;
       ctx.strokeStyle = '#FFFFFF';
-      ctx.lineWidth = r * 0.14;
+      ctx.lineWidth = r * 0.16;
       ctx.beginPath();
       ctx.arc(0, 0, rippleR, 0, Math.PI * 2);
       ctx.stroke();
     }
-    
-    // 第二层涟漪（主题色，稍慢）
-    for (ri = 0; ri < rippleCount - 1; ri++) {
-      var rp2 = ((Date.now() * 0.003 + ri * 0.6 + 0.3) % 1);
-      var rr2 = r * (0.8 + rp2 * 1.5);
-      ctx.globalAlpha = chargeRatio * 0.5 * Math.max(0, 1 - rp2);
+
+    // 第二层涟漪（主题色 + 白色双线，错相更快）
+    for (ri = 0; ri < rippleCount; ri++) {
+      var rp2 = ((Date.now() * 0.005 + ri * 0.5 + 0.3) % 1);
+      var rr2 = r * (0.7 + rp2 * 1.6);
+      var fadeAlpha2 = Math.max(0, 1 - rp2);
+      // 主题色辉光
+      ctx.globalAlpha = chargeRatio * 0.45 * fadeAlpha2;
       ctx.strokeStyle = t.accent;
-      ctx.lineWidth = r * 0.1;
+      ctx.lineWidth = r * 0.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, rr2, 0, Math.PI * 2);
+      ctx.stroke();
+      // 细白线
+      ctx.globalAlpha = chargeRatio * 0.6 * fadeAlpha2;
+      ctx.strokeStyle = '#FFFFFF';
+      ctx.lineWidth = r * 0.08;
       ctx.beginPath();
       ctx.arc(0, 0, rr2, 0, Math.PI * 2);
       ctx.stroke();
@@ -276,21 +315,28 @@ function drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, ch
     ctx.save();
     var breathe = 1 + Math.sin(Date.now() * 0.001 * beatRate * 0.4) * chargeRatio * 0.06;
     ctx.scale((1 + chargeRatio * 0.3) * breathe, (1 + chargeRatio * 0.3) * breathe);
-    
-    // 旋转粒子环
-    ctx.globalAlpha = chargeRatio * 0.55;
-    ctx.fillStyle = t.accent;
+
+    // 旋转粒子环（双色交替，白色核心）
+    ctx.globalAlpha = chargeRatio * 0.6;
     var dotCount = Math.floor(chargeRatio * 12);
     for (var di = 0; di < dotCount; di++) {
       var da = (di / dotCount) * Math.PI * 2 + Date.now() * 0.005;
-      var dr = r * 1.4;
+      var dr = r * 1.35;
+      var dx = Math.cos(da) * dr, dy = Math.sin(da) * dr;
+      // 光晕
+      ctx.fillStyle = di % 2 === 0 ? t.accentDark : t.accent;
       ctx.beginPath();
-      ctx.arc(Math.cos(da) * dr, Math.sin(da) * dr, r * 0.05, 0, Math.PI * 2);
+      ctx.arc(dx, dy, r * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      // 白色核心
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(dx, dy, r * 0.04, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
-  drawBirdBody(ctx, r, t, state === C.STATE.DEAD, avatarImg);
+  drawBirdBody(ctx, r, t, isDead, avatarImg);
 
   // 翅膀抖动（白色残影小翅膀）
   if (chargeRatio > 0.01) {

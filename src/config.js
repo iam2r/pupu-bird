@@ -2,7 +2,7 @@
 // 被所有模块引用，不依赖其他模块
 
 // ==================== 三套主题皮肤 ====================
-// 调试开关：发版时改 false 隐藏 +5积分 按钮
+// 调试开关：发版时改 false 隐藏 调试 按钮
 var DEBUG = false;
 
 var THEMES = {
@@ -14,7 +14,13 @@ var THEMES = {
     pipe:     '#FFB8B8', pipeDark: '#F09898',
     accent:   '#FFB3B3', accentDark: '#FF9F8F',
     textPri:  '#4A2C4A', textSec: 'rgba(155,120,155,0.7)',
+    btnText:  '#4A2C4A',
     bgCard:   '#FEFAF7', bgOverlay: 'rgba(255,240,240,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#FFC0CB','#FFB3B3','#FFD4D4','#FFE4E1','#FFB7C5'],
     acc:      { hat: ['#FFB3B3','#F09898'], bow: ['#FF88A8','#FF6088'], glasses: ['#3A2A3A','#555555'],
                crown: ['#FFB3B3','#FFD700'], flower: ['#FF88A8','#FFC0CB'], ribbon: ['#FFD4E0','#FFB3C8'],
@@ -29,7 +35,13 @@ var THEMES = {
     pipe:     '#C8B8E8', pipeDark: '#A898C8',
     accent:   '#C8B8E8', accentDark: '#B0A0D0',
     textPri:  '#3A2C4A', textSec: 'rgba(120,100,155,0.7)',
+    btnText:  '#3A2C4A',
     bgCard:   '#FAF8FE', bgOverlay: 'rgba(240,235,250,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#D8C8F0','#C0B0E0','#E8D8F8','#D0C0F0','#C8B8E8'],
     acc:      { hat: ['#C8B8E8','#A898C8'], bow: ['#C090D0','#A080B8'], glasses: ['#3A2C4A','#555'],
                crown: ['#C8B8E8','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F0','#D0C0E8'],
@@ -44,7 +56,13 @@ var THEMES = {
     pipe:     '#88C8D8', pipeDark: '#68A8B8',
     accent:   '#88C8D8', accentDark: '#70B8C8',
     textPri:  '#2C3A4A', textSec: 'rgba(100,140,160,0.7)',
+    btnText:  '#2C3A4A',
     bgCard:   '#F8FCFE', bgOverlay: 'rgba(235,245,250,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#B8D8F0','#A8C8E8','#C8E0F8','#B0D0F0','#A0C8E0'],
     acc:      { hat: ['#88C8D8','#68A8B8'], bow: ['#70B0C8','#5898B0'], glasses: ['#2C3A4A','#555'],
                crown: ['#88C8D8','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#C8E0F0','#B0D0E8'],
@@ -59,7 +77,13 @@ var THEMES = {
     pipe:     '#78B868', pipeDark: '#58A048',
     accent:   '#78B868', accentDark: '#60A850',
     textPri:  '#2C4A28', textSec: 'rgba(100,150,100,0.7)',
+    btnText:  '#2C4A28',
     bgCard:   '#F8FCF6', bgOverlay: 'rgba(235,245,235,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#A8D8A0','#88C880','#B8E0B0','#98D090','#80C078'],
     acc:      { hat: ['#78B868','#58A048'], bow: ['#60A850','#489040'], glasses: ['#2C4A28','#555'],
                crown: ['#78B868','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#B8E0B0','#A0D098'],
@@ -74,7 +98,13 @@ var THEMES = {
     pipe:     '#F0A878', pipeDark: '#E09060',
     accent:   '#F0A878', accentDark: '#E89868',
     textPri:  '#4A3020', textSec: 'rgba(160,120,100,0.7)',
+    btnText:  '#4A3020',
     bgCard:   '#FEFAF8', bgOverlay: 'rgba(250,240,235,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#F8C8B0','#F0B898','#F8D0B8','#E8A888','#F0C0A8'],
     acc:      { hat: ['#F0A878','#E09060'], bow: ['#E89868','#D08050'], glasses: ['#4A3020','#555'],
                crown: ['#F0A878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8D0C0','#F0C0B0'],
@@ -89,7 +119,13 @@ var THEMES = {
     pipe:     '#C4A8E0', pipeDark: '#A888C8',
     accent:   '#C4A8E0', accentDark: '#B498D8',
     textPri:  '#3A2848', textSec: 'rgba(130,110,160,0.7)',
+    btnText:  '#3A2848',
     bgCard:   '#FBF8FE', bgOverlay: 'rgba(245,238,252,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#D0B8F0','#C0A8E8','#D8C4F8','#C8B0F0','#B8A0E0'],
     acc:      { hat: ['#C4A8E0','#A888C8'], bow: ['#B890D8','#A078C0'], glasses: ['#3A2848','#555'],
                crown: ['#C4A8E0','#FFD700'], flower: ['#D8A0C8','#E8C0D8'], ribbon: ['#E0D0F4','#D0C0E8'],
@@ -104,7 +140,13 @@ var THEMES = {
     pipe:     '#68C8A0', pipeDark: '#48B088',
     accent:   '#68C8A0', accentDark: '#50B890',
     textPri:  '#284838', textSec: 'rgba(100,150,120,0.7)',
+    btnText:  '#284838',
     bgCard:   '#F6FCF8', bgOverlay: 'rgba(235,248,240,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#90D8B8','#78C8A0','#A0E0C8','#88D0B0','#70C098'],
     acc:      { hat: ['#68C8A0','#48B088'], bow: ['#50B890','#389878'], glasses: ['#284838','#555'],
                crown: ['#68C8A0','#FFD700'], flower: ['#F0A0B8','#F8C0D0'], ribbon: ['#A8E0C8','#90D8B0'],
@@ -119,7 +161,13 @@ var THEMES = {
     pipe:     '#F08878', pipeDark: '#E07058',
     accent:   '#F08878', accentDark: '#E87868',
     textPri:  '#482820', textSec: 'rgba(160,100,90,0.7)',
+    btnText:  '#482820',
     bgCard:   '#FEF8F6', bgOverlay: 'rgba(252,240,238,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#F0B0A0','#E89888','#F8B8A8','#E8A090','#F0A898'],
     acc:      { hat: ['#F08878','#E07058'], bow: ['#E87868','#D06050'], glasses: ['#482820','#555'],
                crown: ['#F08878','#FFD700'], flower: ['#F8A090','#F8B8A8'], ribbon: ['#F8C0B0','#F0B0A0'],
@@ -133,8 +181,14 @@ var THEMES = {
     bird:     '#5B8BD4', birdWing: '#4A7AB8', birdBeak: '#E8C878', birdBlush: '#7AA0E0',
     pipe:     '#4A6FA5', pipeDark: '#385888',
     accent:   '#5B8BD4', accentDark: '#4A7AC4',
-    textPri:  '#D0D8E8', textSec: 'rgba(160,175,200,0.7)',
+    textPri:  '#2A3040', textSec: 'rgba(70,85,110,0.65)',
+    btnText:  '#FFFFFF',
     bgCard:   '#1E1E38', bgOverlay: 'rgba(20,20,40,0.5)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#3A5A8A','#4A6FA5','#5B8BD4','#6A9FE0','#4A6A9A'],
     acc:      { hat: ['#4A6FA5','#385888'], bow: ['#5B8BD4','#4A7AB8'], glasses: ['#D0D8E8','#888'],
                crown: ['#5B8BD4','#FFD700'], flower: ['#E0C8F0','#D0B8E8'], ribbon: ['#6A8FC0','#5B7DB0'],
@@ -149,7 +203,13 @@ var THEMES = {
     pipe:     '#E8A898', pipeDark: '#D08878',
     accent:   '#D4A090', accentDark: '#C09080',
     textPri:  '#482820', textSec: 'rgba(160,110,100,0.7)',
+    btnText:  '#482820',
     bgCard:   '#FEFAF8', bgOverlay: 'rgba(252,240,235,0.3)',
+    surfaceBg: '#FFFFFF', surfaceOverlay: 'rgba(0,0,0,0.45)', surfaceShadow: 'rgba(0,0,0,0.12)', surfaceDivider: 'rgba(0,0,0,0.05)', surfaceClose: 'rgba(0,0,0,0.07)',
+    scoreBg: 'rgba(255,255,255,0.65)', scoreBorder: 'rgba(200,170,180,0.25)',
+    overBg: 'rgba(255,252,250,0.85)', overBorder: 'rgba(220,200,210,0.35)', overDivider: 'rgba(220,200,210,0.3)',
+    cardBg: 'rgba(255,255,255,0.95)', cardShadow: 'rgba(180,160,170,0.18)', cardAvatarRing: 'rgba(255,255,255,0.5)',
+    deathDim: 'rgba(0,0,0,0.18)', startShadow: 'rgba(0,0,0,0.08)',
     petal:    ['#E8B8A8','#D8A898','#F0C0B0','#E0B0A0','#D8A090'],
     acc:      { hat: ['#E8A898','#D08878'], bow: ['#D89880','#C08068'], glasses: ['#482820','#555'],
                crown: ['#E8A898','#FFD700'], flower: ['#F0A898','#F0B8A8'], ribbon: ['#F0C8B8','#E0B8A8'],
@@ -215,6 +275,13 @@ function setLayout(si) {
   exp.PIPE_SPACING = exp.W * 0.58;
   exp.BIRD_SIZE = exp.W * 0.064;
   exp.BIRD_X = exp.W * 0.28;
+
+  // 双人模式常量
+  exp.BIRD_X_A = exp.W * 0.20;
+  exp.BIRD_X_B = exp.W * 0.38;
+  exp.ROPE_MAX_LENGTH = exp.W * 0.25;
+  exp.ROPE_STIFFNESS = 12;
+  exp.TOUCH_SPLIT_X = exp.W * 0.5;
 
   backBtn.x = 10;
   backBtn.y = exp.SAFE_TOP + 4;
@@ -294,6 +361,7 @@ module.exports = {
   GAME_TOP: 0, GAME_BOTTOM: 0, GAME_H: 0, GROUND_Y: 0,
   PIPE_WIDTH: 0, PIPE_GAP: 0, PIPE_SPACING: 0,
   BIRD_SIZE: 0, BIRD_X: 0,
+  BIRD_X_A: 0, BIRD_X_B: 0, ROPE_MAX_LENGTH: 0, ROPE_STIFFNESS: 0, TOUCH_SPLIT_X: 0,
   backBtn: backBtn,
   getT: getT,
   roundRect: roundRect,

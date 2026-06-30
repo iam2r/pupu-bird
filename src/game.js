@@ -38,13 +38,93 @@ var paneling = null;
 var panelJustOpened = false;
 var showingLeaderboard = false;
 var leaderboardJustOpened = false;
-var rankingBest = 0;  // 排行榜：最高复合分
+var rankingBest = 0;    // 排行榜：单人最高复合分
+var rankingBest2P = 0;  // 排行榜：双人最高复合分
+var leaderboardMode = 0; // 0=单人榜 1=双人榜
 
 // ---- 花瓣粒子 ----
 var petals = [];
 
 // ---- 纪念卡 ----
 var memorialMsg;
+
+// ---- 死亡动画 ----
+var deathAnimPhase = 0;    // 0=坠落, 1=弹起, 2=落地
+var deathGroundOffset = 0; // 冻结地面纹理偏移
+
+// ---- 双人模式 ----
+var isTwoPlayer = false;
+var birdA = null, birdB = null;
+var _activeTouchMap = {};     // { touchId: 'A'|'B' }
+var _activeCountA = 0, _activeCountB = 0;
+var _splitLineTimer = 0;      // 双人开场分屏线倒计时
+
+function _createBirdState(bx) {
+  return {
+    x: bx, y: C.GAME_TOP + C.GAME_H / 2, vy: 0, alive: true,
+    isCharging: false, chargeStartTime: 0, chargeRatio: 0, chargeWasFull: false,
+    combo: 0, chargeMultiplier: 1, multiBurstTime: 0, invincibleTimer: 0
+  };
+}
+
+function _applyRopeConstraint(s) {
+  if (!birdA || !birdB) return;
+  var dx = birdB.x - birdA.x;
+  var dy = birdB.y - birdA.y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist <= C.ROPE_MAX_LENGTH) return;
+  var overlap = dist - C.ROPE_MAX_LENGTH;
+  var ny = dy / dist;
+  var force = overlap * C.ROPE_STIFFNESS * 60 * s;
+  if (birdA.alive && !birdB.alive)      { birdA.vy += ny * force * 0.75; birdB.vy -= ny * force * 0.25; }
+  else if (!birdA.alive && birdB.alive) { birdA.vy += ny * force * 0.25; birdB.vy -= ny * force * 0.75; }
+  else if (birdA.alive && birdB.alive)  { birdA.vy += ny * force * 0.5;  birdB.vy -= ny * force * 0.5; }
+}
+
+function _dieBird(bird, other) {
+  if (!bird.alive) return;
+  bird.alive = false;
+  if (bird.isCharging) {
+    if (bird === birdA) Sound.stopCharge(0); else Sound.stopCharge2(0);
+    bird.isCharging = false; bird.chargeRatio = 0;
+  }
+  Sound.playDie();
+  var t = C.getT(currentTheme);
+  Particles.spawnDeathPetals(petals, bird.y, t);
+  if (!birdA.alive && !birdB.alive) _finalizeDualDeath();
+}
+
+function _finalizeDualDeath() {
+  state = C.STATE.DEAD;
+  shakeTimer = 0; deathAnimPhase = 0;
+  deathGroundOffset = (Date.now() * 0.06) % 40;
+  birdY = Math.min(birdA.y, birdB.y);
+  birdVY = 0;
+  // 勋章/积分/解锁 — 复用单人逻辑
+  if (score >= 30) medalLevel = 3;
+  else if (score >= 20) medalLevel = 2;
+  else if (score >= 10) medalLevel = 1;
+  if (score > best) best = score;
+  Storage.saveData(buildSaveData());
+  var earned = 0;
+  if (score >= 2) { earned = 1 + Math.floor((score - 2) / 5); if (combo >= 7) earned += 3; else if (combo >= 5) earned += 2; }
+  earned = Math.min(earned, 20);
+  if (earned > 0) { points += earned; Storage.savePoints(points); wx.showToast({ title: '+' + earned + ' 💎', icon: 'none', duration: 1200 }); }
+  if (combo >= 5) score += Math.floor(combo / 2);
+  var keys = Object.keys(C.THEMES);
+  var newUnlocks = [];
+  for (var ki = 0; ki < keys.length; ki++) {
+    var k = keys[ki];
+    if (!unlockedThemes[k] && points >= C.THEMES[k].unlock) { unlockedThemes[k] = true; newUnlocks.push(C.THEMES[k].name); }
+  }
+  if (newUnlocks.length > 0) { Storage.saveData(buildSaveData()); wx.showToast({ title: '解锁：' + newUnlocks.join('、'), icon: 'none', duration: 2500 }); }
+  Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx, userAvatarUrl, avatarEnabled ? avatarImg : null);
+  Memorial.prepareShareImage();
+  if (score > 0) {
+    var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
+    if (composite > rankingBest) { rankingBest = composite; Storage.saveData(buildSaveData()); uploadToCloud(); }
+  }
+}
 
 // ---- 积分 ----
 var points;
@@ -65,49 +145,53 @@ function buildSaveData() {
     unlockedThemes: unlockedThemes,
     unlockedAccessories: unlockedAccessories,
     avatarEnabled: avatarEnabled,
-    rankingBest: rankingBest
+    rankingBest: rankingBest,
+    rankingBest2P: rankingBest2P
   };
 }
 
-function uploadToCloud() {
+function uploadToCloud(mode) {
+  mode = mode || 0;
   var now = Math.floor(Date.now() / 1000);
-  console.log('[Leaderboard] 上传: rankingBest=' + rankingBest);
+  var score = mode === 1 ? rankingBest2P : rankingBest;
+  var key = mode === 1 ? 'bestScore2P' : 'bestScore';
+  console.log('[Leaderboard] 上传 mode=' + mode + ' score=' + score);
 
-  // 1. 官方排行榜上报（mp后台配置激活需要）
+  // 1. 官方排行榜上报
   if (rankManager) {
     try {
-      rankManager.update({ scoreList: [{ score: rankingBest }] });
-      console.log('[Leaderboard] rankManager.update 已调用');
-    } catch(e) {
-      console.log('[Leaderboard] rankManager.update 失败:', e);
-    }
+      rankManager.update({ scoreList: [{ score: score }] });
+    } catch(e) {}
   }
 
-  // 2. 关系链KV（开放数据域自渲染用）
+  // 2. 关系链KV
   wx.setUserCloudStorage({
     KVDataList: [
-      { key: 'bestScore', value: JSON.stringify({ wxgame: { score: rankingBest, update_time: now } }) }
+      { key: key, value: JSON.stringify({ wxgame: { score: score, update_time: now } }) }
     ],
     success: function() {
-      console.log('[Leaderboard] setUserCloudStorage 成功');
       if (showingLeaderboard) {
-        try { wx.getOpenDataContext().postMessage({ type: 'refresh' }); } catch(e) {}
+        var tU = C.getT(currentTheme);
+        try { wx.getOpenDataContext().postMessage({ type: 'refresh', mode: leaderboardMode, accent: tU.accent, accentDark: tU.accentDark }); } catch(e) {}
       }
     },
-    fail: function(err) {
-      console.log('[Leaderboard] setUserCloudStorage 失败:', JSON.stringify(err));
-    }
+    fail: function(err) {}
   });
 }
 
 function showLeaderboardOverlay() {
   showingLeaderboard = true;
   leaderboardJustOpened = true;
+  leaderboardMode = isTwoPlayer ? 1 : 0;
   try {
     var openDataContext = wx.getOpenDataContext();
     var si = wx.getSystemInfoSync();
+    var t = C.getT(currentTheme);
     openDataContext.postMessage({
       type: 'show',
+      mode: leaderboardMode,
+      accent: t.accent,
+      accentDark: t.accentDark,
       W: si.windowWidth,
       H: si.windowHeight,
       dpr: si.pixelRatio || 1
@@ -142,6 +226,9 @@ function gotoMenu() {
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
+  isTwoPlayer = false;
+  birdA = null; birdB = null;
+  _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   state = C.STATE.MENU;
 }
@@ -165,6 +252,12 @@ function startGame() {
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
+  if (isTwoPlayer) {
+    birdA = _createBirdState(C.BIRD_X_A);
+    birdB = _createBirdState(C.BIRD_X_B);
+    _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
+    _splitLineTimer = 2.0;
+  }
   gameJustStarted = true;
   state = C.STATE.PLAYING;
 }
@@ -175,8 +268,11 @@ function flap(velocity) {
 }
 
 function die() {
+  if (isTwoPlayer) return; // 双人模式由 _dieBird / _finalizeDualDeath 处理
   state = C.STATE.DEAD;
   shakeTimer = 0;
+  deathAnimPhase = 0;
+  deathGroundOffset = (Date.now() * 0.06) % 40;
   if (isCharging) { Sound.stopCharge(0); }
   isCharging = false;
   chargeRatio = 0;
@@ -243,10 +339,10 @@ function die() {
     // 复合分 = score*100 + floor(score/pipesPassed)
     // 前段是主排序（1分=100），末2位是效率tiebreaker（管道均分）
     var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
-    if (composite > rankingBest) {
-      rankingBest = composite;
+    if (composite > rankingBest2P) {
+      rankingBest2P = composite;
       Storage.saveData(buildSaveData());
-      uploadToCloud();
+      uploadToCloud(1);
     }
   }
 }
@@ -271,6 +367,12 @@ function restartGame() {
   shakeTimer = 0;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
+  if (isTwoPlayer) {
+    birdA = _createBirdState(C.BIRD_X_A);
+    birdB = _createBirdState(C.BIRD_X_B);
+    _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
+    _splitLineTimer = 2.0;
+  }
   gameJustStarted = true;
   state = C.STATE.PLAYING;
 }
@@ -413,6 +515,7 @@ function init(canvas, ctx, params) {
   points = data.points;
   avatarEnabled = data.avatarEnabled || false;
   rankingBest = data.rankingBest || 0;
+  rankingBest2P = data.rankingBest2P || 0;
 
   // 官方排行榜
   try { rankManager = wx.getRankManager(); } catch(e) { rankManager = null; }
@@ -438,12 +541,176 @@ function init(canvas, ctx, params) {
 function update(dt) {
   Particles.updatePetals(petals, dt, state);
 
-  if (state !== C.STATE.PLAYING) return;
+  if (state !== C.STATE.PLAYING && state !== C.STATE.DEAD) return;
+
+  var s = Math.min(dt, 0.1);
+
+  // ---- 死亡动画：坠落 → 弹跳 → 落地 ----
+  if (state === C.STATE.DEAD) {
+    if (shakeTimer > 0) shakeTimer = Math.max(0, shakeTimer - s);
+
+    if (isTwoPlayer && birdA && birdB) {
+      // 双人：两鸟各自落向地面
+      var groundYA = C.GROUND_Y - C.BIRD_SIZE * 0.6;
+      if (birdA.y < groundYA) {
+        birdA.vy = Math.min(C.TERMINAL_V, birdA.vy + C.GRAVITY_PX * s);
+        birdA.y += birdA.vy * s;
+      } else {
+        birdA.y = groundYA; birdA.vy = 0;
+      }
+      if (birdB.y < groundYA) {
+        birdB.vy = Math.min(C.TERMINAL_V, birdB.vy + C.GRAVITY_PX * s);
+        birdB.y += birdB.vy * s;
+      } else {
+        birdB.y = groundYA; birdB.vy = 0;
+      }
+      // 绳索在死后仍施加约束，直到两鸟都落地
+      if (birdA.y < groundYA || birdB.y < groundYA) _applyRopeConstraint(s);
+      if (birdA.y >= groundYA && birdB.y >= groundYA && deathAnimPhase < 2) {
+        deathAnimPhase = 2; shakeTimer = 0.3;
+        var td = C.getT(currentTheme);
+        Particles.spawnDeathPetals(petals, birdA.y, td);
+        Particles.spawnDeathPetals(petals, birdB.y, td);
+      }
+    } else {
+      // 单人：原有逻辑
+      if (deathAnimPhase < 2) {
+        birdVY = Math.min(C.TERMINAL_V, birdVY + C.GRAVITY_PX * s);
+        birdY += birdVY * s;
+        var groundY = C.GROUND_Y - C.BIRD_SIZE * 0.6;
+        if (birdY >= groundY && deathAnimPhase === 0) {
+          birdY = groundY;
+          birdVY = -Math.abs(birdVY) * 0.3;
+          deathAnimPhase = 1; shakeTimer = 0.5;
+          var t2 = C.getT(currentTheme);
+          Particles.spawnDeathPetals(petals, groundY, t2);
+        } else if (birdY >= groundY && deathAnimPhase === 1) {
+          birdY = groundY; birdVY = 0;
+          deathAnimPhase = 2; shakeTimer = 0.3;
+        }
+      }
+    }
+    return;
+  }
+
+  // ---- 双人模式：独立物理 + 绳索约束 + 碰撞 ----
+  if (isTwoPlayer) {
+    if (_splitLineTimer > 0) _splitLineTimer = Math.max(0, _splitLineTimer - s);
+    var t2 = C.getT(currentTheme);
+    // 更新活鸟物理 + 蓄力
+    if (birdA.alive) {
+      birdA.vy = Math.min(C.TERMINAL_V, birdA.vy + C.GRAVITY_PX * s);
+      birdA.y += birdA.vy * s;
+      if (birdA.isCharging) {
+        birdA.chargeRatio = Math.min((Date.now() - birdA.chargeStartTime) / 1000 / C.CHARGE_MAX_TIME, 1.0);
+        if (birdA.chargeRatio >= 0.95 && !birdA.chargeWasFull) { birdA.chargeWasFull = true; Sound.playChargeFull(); }
+        Sound.updateCharge(birdA.chargeRatio);
+      }
+    }
+    if (birdB.alive) {
+      birdB.vy = Math.min(C.TERMINAL_V, birdB.vy + C.GRAVITY_PX * s);
+      birdB.y += birdB.vy * s;
+      if (birdB.isCharging) {
+        birdB.chargeRatio = Math.min((Date.now() - birdB.chargeStartTime) / 1000 / C.CHARGE_MAX_TIME, 1.0);
+        if (birdB.chargeRatio >= 0.95 && !birdB.chargeWasFull) { birdB.chargeWasFull = true; Sound.playChargeFull(); }
+        Sound.updateCharge2(birdB.chargeRatio);
+      }
+    }
+    // 死鸟继续下落
+    if (!birdA.alive) { birdA.vy = Math.min(C.TERMINAL_V, birdA.vy + C.GRAVITY_PX * s); birdA.y += birdA.vy * s; }
+    if (!birdB.alive) { birdB.vy = Math.min(C.TERMINAL_V, birdB.vy + C.GRAVITY_PX * s); birdB.y += birdB.vy * s; }
+    // 绳索约束 + 蓄力拉升
+    _applyRopeConstraint(s);
+    // 蓄力差拉升：高蓄力方拉起低蓄力方
+    if (birdA.alive && birdB.alive) {
+      var liftDiff = (birdA.chargeRatio - birdB.chargeRatio);
+      birdA.vy -= liftDiff * 120 * s;
+      birdB.vy += liftDiff * 120 * s;
+    }
+    // 各自无敌计时
+    if (birdA.alive && birdA.invincibleTimer > 0) birdA.invincibleTimer = Math.max(0, birdA.invincibleTimer - s);
+    if (birdB.alive && birdB.invincibleTimer > 0) birdB.invincibleTimer = Math.max(0, birdB.invincibleTimer - s);
+
+    // 管道生成
+    var last = pipes[pipes.length - 1];
+    if (!last || last.x <= C.W - C.PIPE_SPACING) {
+      pipes.push(Pipe.createPipe(C.W, Pipe.randomGapCenter(pipes.length, false)));
+      if (Math.random() < 0.6) {
+        var gapCY2 = pipes[pipes.length - 1].gapCenter;
+        var isDanger = Math.random() < 0.2;
+        var offY = isDanger ? (Math.random() - 0.5) * C.PIPE_GAP * 0.9 : (Math.random() - 0.5) * C.PIPE_GAP * 0.5;
+        stars.push(Star.createStar(pipes[pipes.length - 1].x + C.PIPE_WIDTH + 40, gapCY2 + offY, isDanger));
+      }
+    }
+
+    // 管道移动 & 双鸟计分（取最大倍率）
+    var scroll = C.SCROLL_SPEED * s;
+    for (var pi = 0; pi < pipes.length; pi++) {
+      var pp = pipes[pi];
+      pp.x -= scroll;
+      if (Pipe.hasPassedPipeBird(pp, birdA.x, 'A')) { pp.passedByA = true; }
+      if (Pipe.hasPassedPipeBird(pp, birdB.x, 'B')) { pp.passedByB = true; }
+      if (pp.passedByA && pp.passedByB && !pp.passed) {
+        pp.passed = true;
+        pipesPassed++;
+        var mxMul = Math.max(birdA.chargeMultiplier, birdB.chargeMultiplier);
+        score += 1 * mxMul;
+        birdA.chargeMultiplier = 1; birdB.chargeMultiplier = 1;
+        Sound.playScore();
+        Particles.spawnPetals(petals, (birdA.x + birdB.x) / 2, (birdA.y + birdB.y) / 2, 8, t2, 80, 50);
+      }
+    }
+    while (pipes.length > 0 && pipes[0].x + C.PIPE_WIDTH < -10) pipes.shift();
+
+    // 辅助：单鸟拾星计分
+    function _pickupStar(bird, starObj, birdKey) {
+      var starScore = starObj.bonus ? 4 : 2;
+      bird.combo++;
+      var cb = 0;
+      if (bird.combo >= 7) cb = 4;
+      else if (bird.combo >= 5) cb = 3;
+      else if (bird.combo >= 3) cb = 2;
+      else if (bird.combo >= 2) cb = 1;
+      score += (starScore + cb) * bird.chargeMultiplier;
+      Sound.playCombo(bird.combo);
+      Sound.playStarPickup();
+      // 里程碑
+      if (bird.combo % 3 === 0) { bird.invincibleTimer = Math.min(3.5, 2 + Math.floor(bird.combo / 3) * 0.5); Sound.playInvincible(); }
+      else if (bird.combo === 5) { score += 15; }
+      else if (bird.combo === 7) { score += 30; }
+    }
+
+    var birdR = C.BIRD_SIZE / 2;
+    for (var si3 = 0; si3 < stars.length; si3++) {
+      stars[si3].x -= scroll;
+      if (birdA.alive && Star.checkPickup(stars[si3], birdA.x, birdA.y, birdR)) {
+        stars[si3].collected = true; _pickupStar(birdA, stars[si3], 'A');
+      }
+      if (birdB.alive && !stars[si3].collected && Star.checkPickup(stars[si3], birdB.x, birdB.y, birdR)) {
+        stars[si3].collected = true; _pickupStar(birdB, stars[si3], 'B');
+      }
+    }
+    for (var si4 = stars.length - 1; si4 >= 0; si4--) {
+      if (stars[si4].x < -20) {
+        if (!stars[si4].collected) { birdA.combo = 0; birdB.combo = 0; }
+        stars.splice(si4, 1);
+      }
+    }
+
+    // 碰撞检测（各自无敌）
+    if (birdA.alive && birdA.invincibleTimer <= 0) {
+      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) _dieBird(birdA, birdB);
+      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { _dieBird(birdA, birdB); break; } }
+    }
+    if (birdB.alive && birdB.invincibleTimer <= 0 && state === C.STATE.PLAYING) {
+      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) _dieBird(birdB, birdA);
+      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { _dieBird(birdB, birdA); break; } }
+    }
+    return;
+  }
 
   // 防护：如果死了还在跑，强制停止
   if (birdY > C.H + 50 || birdY < -200) { die(); return; }
-
-  var s = Math.min(dt, 0.1);
 
   // 震动衰减
   if (shakeTimer > 0) shakeTimer = Math.max(0, shakeTimer - s);
@@ -562,12 +829,13 @@ function draw(ctx) {
     }
   }
 
-  UI.drawGround(ctx, t);
+  // 死亡后地面纹理冻结
+  UI.drawGround(ctx, t, state === C.STATE.DEAD ? deathGroundOffset : undefined);
 
   // 星星在 ground 之后画，避免被遮挡
   if (state === C.STATE.PLAYING || state === C.STATE.DEAD) {
     for (var si = 0; si < stars.length; si++) {
-      if (!stars[si].collected) Star.drawStar(ctx, stars[si]);
+      if (!stars[si].collected) Star.drawStar(ctx, stars[si], t);
     }
   }
 
@@ -582,13 +850,118 @@ function draw(ctx) {
       unlockedAccessories: unlockedAccessories,
       avatarEnabled: avatarEnabled,
       avatarImg: avatarImg,
-      userAvatarUrl: userAvatarUrl
+      userAvatarUrl: userAvatarUrl,
+      isTwoPlayer: isTwoPlayer
     });
     if (paneling === 'theme') UI.drawThemePanel(ctx, t, { points: points, unlockedThemes: unlockedThemes, currentTheme: currentTheme });
     if (paneling === 'accessory') UI.drawAccessoryPanel(ctx, t, { currentAccessory: currentAccessory, unlockedAccessories: unlockedAccessories });
     if (paneling === 'debug') UI.drawDebugPanel(ctx);
     UI.drawDebugButton(ctx);
   } else if (state === C.STATE.PLAYING) {
+    // ---- 双人模式绘制 ----
+    if (isTwoPlayer) {
+      // 无敌光环
+      [birdA, birdB].forEach(function(bd) {
+        if (bd.alive && bd.invincibleTimer > 0) {
+          var maxInv = Math.min(3.5, 2 + Math.floor(bd.combo / 3) * 0.5);
+          var ratio = bd.invincibleTimer / maxInv;
+          var rr = 255, gg = Math.floor(215 * ratio + 51 * (1 - ratio)), bb = Math.floor(0 * ratio + 51 * (1 - ratio));
+          var invColor = 'rgb(' + rr + ',' + gg + ',' + bb + ')';
+          var pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.015);
+          ctx.save();
+          ctx.globalAlpha = 0.35 * pulse;
+          ctx.fillStyle = invColor;
+          ctx.beginPath(); ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 0.9, 0, Math.PI * 2); ctx.fill();
+          ctx.globalAlpha = 0.25 * pulse;
+          ctx.beginPath(); ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 1.1, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
+      });
+      // 画鸟 + 绳索
+      Bird.drawBird(ctx, birdA.y, birdA.vy, state, 0, t, currentAccessory, birdA.chargeRatio, avatarEnabled ? avatarImg : null, birdA.x, !birdA.alive);
+      Bird.drawBird(ctx, birdB.y, birdB.vy, state, 0, t, currentAccessory, birdB.chargeRatio, avatarEnabled ? avatarImg : null, birdB.x, !birdB.alive);
+      UI.drawRope(ctx, birdA, birdB, t);
+      // 开场分屏分隔线动画
+      if (_splitLineTimer > 0) {
+        var lineAlpha;
+        if (_splitLineTimer > 1.6) lineAlpha = (2.0 - _splitLineTimer) / 0.4 * 0.6;       // 0→0.6 淡入
+        else if (_splitLineTimer > 0.4) lineAlpha = 0.6;                                     // 保持
+        else lineAlpha = _splitLineTimer / 0.4 * 0.6;                                        // 淡出
+        ctx.save();
+        ctx.globalAlpha = lineAlpha;
+        ctx.strokeStyle = t.accentDark;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath();
+        ctx.moveTo(C.TOUCH_SPLIT_X, C.GAME_TOP);
+        ctx.lineTo(C.TOUCH_SPLIT_X, C.GROUND_Y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // A / B 标签
+        ctx.fillStyle = t.accentDark;
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var labelY = C.GAME_TOP + C.GAME_H / 2;
+        ctx.fillText('A', C.TOUCH_SPLIT_X - 24, labelY);
+        ctx.fillText('B', C.TOUCH_SPLIT_X + 24, labelY);
+        ctx.restore();
+      }
+      // 倍率标签
+      [birdA, birdB].forEach(function(bd) {
+        if (bd.alive && bd.chargeMultiplier > 1) {
+          ctx.save();
+          var pulse = 1 + 0.1 * Math.sin(Date.now() * 0.008);
+          var burst = 0;
+          if (bd.multiBurstTime) {
+            var elapsed = (Date.now() - bd.multiBurstTime) / 1000;
+            if (elapsed < 0.5) burst = (1 - elapsed / 0.5) * 0.5 * Math.sin(elapsed * Math.PI * 4);
+          }
+          var scale = pulse + burst;
+          ctx.translate(bd.x, bd.y - C.BIRD_SIZE * 0.8);
+          ctx.scale(scale, scale);
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = burst > 0.1 ? '#FFD700' : '#FF6600';
+          ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'alphabetic';
+          ctx.fillText('x' + bd.chargeMultiplier, 0, 0);
+          ctx.restore();
+        }
+      });
+      if (petals.length > 0) Particles.drawPetals(ctx, petals);
+      UI.drawScorePanel(ctx, score, t);
+      // 各自 combo 文字（在鸟附近）
+      [birdA, birdB].forEach(function(bd) {
+        if (bd.alive && bd.combo >= 1) {
+          var comboText, comboColor, comboSize;
+          if (bd.combo >= 7)      { comboText = 'LEGENDARY'; comboColor = '#FF44FF'; comboSize = 22; }
+          else if (bd.combo >= 5) { comboText = 'FANTASTIC'; comboColor = '#FF4444'; comboSize = 20; }
+          else if (bd.combo >= 3) { comboText = 'AMAZING';  comboColor = '#FF8800'; comboSize = 18; }
+          else if (bd.combo >= 2) { comboText = 'GREAT';    comboColor = '#FFCC00'; comboSize = 16; }
+          else                    { comboText = 'GOOD';      comboColor = '#FFFFFF'; comboSize = 14; }
+          ctx.save();
+          var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
+          var cSize = Math.floor(comboSize * cPop);
+          var cyOff = bd.y - C.BIRD_SIZE * 1.3;
+          ctx.font = 'bold ' + cSize + 'px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'alphabetic';
+          ctx.strokeStyle = t.accentDark;
+          ctx.lineWidth = cSize * 0.15;
+          ctx.globalAlpha = 0.55;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(comboText, bd.x, cyOff);
+          ctx.shadowColor = comboColor;
+          ctx.shadowBlur = 8;
+          ctx.globalAlpha = 0.85;
+          ctx.fillStyle = comboColor;
+          ctx.fillText(comboText, bd.x, cyOff);
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+      });
+    } else {
     // 无敌光环（金→红递减警告）
     if (invincibleTimer > 0) {
       var maxInv = Math.min(3.5, 2 + Math.floor(combo / 3) * 0.5);
@@ -664,14 +1037,20 @@ function draw(ctx) {
       var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
       var cSize = Math.floor(comboSize * cPop);
       var cx = C.W / 2, cy = C.GAME_TOP + 135;
-      // 柔和光晕
+      ctx.font = 'bold ' + cSize + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      // 主题色轮廓描边（亮色背景下勾勒文字边缘）
+      ctx.strokeStyle = t.accentDark;
+      ctx.lineWidth = cSize * 0.15;
+      ctx.globalAlpha = 0.55;
+      ctx.lineJoin = 'round';
+      ctx.strokeText(comboText, cx, cy);
+      // 柔和光晕 + 填充
       ctx.shadowColor = comboColor;
       ctx.shadowBlur = 12;
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = comboColor;
-      ctx.font = 'bold ' + cSize + 'px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
       ctx.fillText(comboText, cx, cy);
       ctx.shadowBlur = 0;
       // 小字 xN
@@ -680,16 +1059,25 @@ function draw(ctx) {
       ctx.fillText('x' + combo, cx, C.GAME_TOP + 155);
       ctx.restore();
     }
+    } // end single-player block
   } else if (state === C.STATE.DEAD) {
-    ctx.fillStyle = t.bgCard;
+    // 半透明遮罩：保留底下死亡场景（管道+地面+鸟），游戏结束面板浮动在上
+    ctx.fillStyle = t.deathDim;
     ctx.fillRect(0, 0, C.W, C.H);
-    Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
+    if (isTwoPlayer && birdA && birdB) {
+      Bird.drawBird(ctx, birdA.y, birdA.vy, state, shakeTimer, t, currentAccessory, 0, avatarEnabled ? avatarImg : null, birdA.x, true);
+      Bird.drawBird(ctx, birdB.y, birdB.vy, state, shakeTimer, t, currentAccessory, 0, avatarEnabled ? avatarImg : null, birdB.x, true);
+      UI.drawRope(ctx, birdA, birdB, t);
+    } else {
+      Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, avatarEnabled ? avatarImg : null);
+    }
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawGameOverPanel(ctx, t, {
       score: score,
       medalLevel: medalLevel,
       best: best,
-      unlockedThemes: unlockedThemes
+      unlockedThemes: unlockedThemes,
+      isTwoPlayer: isTwoPlayer
     });
   } else if (state === C.STATE.MEMORIAL) {
     UI.drawMemorialScreen(ctx, t, {
@@ -794,7 +1182,7 @@ function onTouch(e) {
       // 排行榜面板尺寸（与主题面板统一）
       var lbW = C.W * 0.82, lbH = C.H * 0.55;
       var lbX = (C.W - lbW) / 2, lbY = (C.H - lbH) / 2;
-      // 关闭按钮 ✕
+      // 关闭按钮 ✕（最优先）
       var closeCX = lbX + lbW - 22, closeCY = lbY + 18;
       if (Math.sqrt((tx - closeCX) * (tx - closeCX) + (ty - closeCY) * (ty - closeCY)) < 16) {
         hideLeaderboardOverlay();
@@ -804,6 +1192,25 @@ function onTouch(e) {
       if (tx < lbX || tx > lbX + lbW || ty < lbY || ty > lbY + lbH) {
         hideLeaderboardOverlay();
         return;
+      }
+      // 标题栏双 tab：单人 | 双人（原地刷新，不重开关）
+      var tabW2 = 60, tabH2 = 24, tabGap2 = 6;
+      var tabTotalW = tabW2 * 2 + tabGap2;
+      var tabX2 = lbX + (lbW - tabTotalW) / 2;
+      var tabY2 = lbY + 13;
+      if (ty >= tabY2 && ty <= tabY2 + tabH2) {
+        if (tx >= tabX2 && tx <= tabX2 + tabW2 && leaderboardMode !== 0) {
+          leaderboardMode = 0;
+          var od2 = wx.getOpenDataContext();
+          od2.postMessage({ type: 'switchMode', mode: 0, accent: C.getT(currentTheme).accent, accentDark: C.getT(currentTheme).accentDark });
+          return;
+        }
+        if (tx >= tabX2 + tabW2 + tabGap2 && tx <= tabX2 + tabTotalW && leaderboardMode !== 1) {
+          leaderboardMode = 1;
+          var od3 = wx.getOpenDataContext();
+          od3.postMessage({ type: 'switchMode', mode: 1, accent: C.getT(currentTheme).accent, accentDark: C.getT(currentTheme).accentDark });
+          return;
+        }
       }
       forwardTouchToLeaderboard(tx, ty, 'end');
     }
@@ -839,7 +1246,8 @@ function onTouch(e) {
       paneling: paneling,
       unlockedAccessories: unlockedAccessories,
       avatarEnabled: avatarEnabled,
-      userAvatarUrl: userAvatarUrl
+      userAvatarUrl: userAvatarUrl,
+      isTwoPlayer: isTwoPlayer
     });
 
     if (!mAct) return;
@@ -873,6 +1281,8 @@ function onTouch(e) {
       wx.showToast({ title: mAct.msg, icon: 'none' });
     } else if (mAct.action === 'toggleAvatar') {
       toggleAvatar();
+    } else if (mAct.action === 'toggleMode') {
+      isTwoPlayer = !isTwoPlayer;
     } else if (mAct.action === 'startGame') {
       startGame();
     } else if (mAct.action === 'showLeaderboard') {
@@ -883,6 +1293,66 @@ function onTouch(e) {
 
   // PLAYING：长按蓄力 / 点击飞行
   if (state === C.STATE.PLAYING) {
+    // ---- 双人模式多触控 ----
+    if (isTwoPlayer) {
+      if (e.touches && e.touches.length > 0) {
+        if (gameJustStarted) gameJustStarted = false;
+        var newMap = {};
+        for (var ti = 0; ti < e.touches.length; ti++) {
+          var tp = e.touches[ti];
+          var key = tp.clientX < C.TOUCH_SPLIT_X ? 'A' : 'B';
+          newMap[tp.identifier] = key;
+          var bd = key === 'A' ? birdA : birdB;
+          if (!_activeTouchMap[tp.identifier] && bd.alive && !bd.isCharging) {
+            bd.isCharging = true; bd.chargeStartTime = Date.now(); bd.chargeWasFull = false;
+            if (key === 'A') Sound.startCharge(); else Sound.startCharge2();
+          }
+        }
+        // 检测松开的触控
+        for (var id in _activeTouchMap) {
+          if (!newMap[id]) {
+            var rk = _activeTouchMap[id];
+            var rd = rk === 'A' ? birdA : birdB;
+            if (rd.isCharging) {
+              var rRatio = rd.chargeRatio < 0.4 ? 0 : rd.chargeRatio;
+              var rVel = C.CHARGE_MIN_VELOCITY + (C.CHARGE_MAX_VELOCITY - C.CHARGE_MIN_VELOCITY) * rRatio;
+              if (rRatio > 0) {
+                var newM = Math.min(5, rd.chargeMultiplier + Math.floor(rRatio * 4));
+                if (newM > rd.chargeMultiplier) rd.multiBurstTime = Date.now();
+                rd.chargeMultiplier = newM;
+              }
+              rd.vy = rVel;
+              if (rk === 'A') Sound.stopCharge(rRatio); else Sound.stopCharge2(rRatio);
+              rd.isCharging = false; rd.chargeRatio = 0;
+            }
+          }
+        }
+        _activeTouchMap = newMap;
+        return;
+      } else {
+        // touchEnd：释放所有活跃触控
+        if (gameJustStarted) { gameJustStarted = false; return; }
+        for (var id2 in _activeTouchMap) {
+          var ek = _activeTouchMap[id2];
+          var ed = ek === 'A' ? birdA : birdB;
+          if (ed.isCharging) {
+            var eRatio = ed.chargeRatio < 0.4 ? 0 : ed.chargeRatio;
+            var eVel = C.CHARGE_MIN_VELOCITY + (C.CHARGE_MAX_VELOCITY - C.CHARGE_MIN_VELOCITY) * eRatio;
+            if (eRatio > 0) {
+              var eM = Math.min(5, ed.chargeMultiplier + Math.floor(eRatio * 4));
+              if (eM > ed.chargeMultiplier) ed.multiBurstTime = Date.now();
+              ed.chargeMultiplier = eM;
+            }
+            ed.vy = eVel;
+            if (ek === 'A') Sound.stopCharge(eRatio); else Sound.stopCharge2(eRatio);
+            ed.isCharging = false; ed.chargeRatio = 0;
+          }
+        }
+        _activeTouchMap = {};
+        return;
+      }
+    }
+
     if (e.touches && e.touches.length > 0) {
       // 按下：立即开始蓄力（gameJustStarted 不阻止）
       if (gameJustStarted) gameJustStarted = false;

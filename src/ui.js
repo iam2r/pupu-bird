@@ -48,7 +48,7 @@ function drawBackButton(ctx, theme) {
   ctx.fillStyle = t.accent;
   C.roundRect(ctx, bx, by, bw, bh, 14);
   ctx.fill();
-  C.drawText(ctx, '返回', bx + bw / 2, by + bh / 2, 13, '#FFFFFF', true);
+  C.drawText(ctx, '返回', bx + bw / 2, by + bh / 2, 13, t.btnText, true);
   ctx.textAlign = 'left';
 }
 
@@ -76,14 +76,14 @@ function drawSky(ctx, t) {
 }
 
 // ==================== 地面 ====================
-function drawGround(ctx, t) {
+function drawGround(ctx, t, frozenOffset) {
   ctx.fillStyle = t.grass;
   ctx.fillRect(0, C.GROUND_Y - 6, C.W, 12);
   ctx.fillStyle = t.ground;
   ctx.fillRect(0, C.GROUND_Y, C.W, C.H - C.GROUND_Y);
 
   ctx.fillStyle = 'rgba(200,185,160,0.3)';
-  var offset = (Date.now() * 0.06) % 40;
+  var offset = (frozenOffset !== undefined) ? frozenOffset : (Date.now() * 0.06) % 40;
   for (var x = -40 + offset; x < C.W + 40; x += 40) {
     ctx.fillRect(x, C.GROUND_Y, 22, 3);
   }
@@ -94,10 +94,10 @@ function drawScorePanel(ctx, score, t) {
   var pw = 90, ph = 32;
   var px = (C.W - pw) / 2, py = C.GAME_TOP + 2;
 
-  ctx.fillStyle = 'rgba(255,255,255,0.65)';
+  ctx.fillStyle = t.scoreBg;
   C.roundRect(ctx, px, py, pw, ph, 16);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(200,170,180,0.25)';
+  ctx.strokeStyle = t.scoreBorder;
   ctx.lineWidth = 0.5;
   C.roundRect(ctx, px, py, pw, ph, 16);
   ctx.stroke();
@@ -129,15 +129,15 @@ function drawStartScreen(ctx, t, stateData) {
   var avatarEnabled = stateData.avatarEnabled;
   var avatarImg = stateData.avatarImg;
   var userAvatarUrl = stateData.userAvatarUrl;
+  var isTwoPlayer = stateData.isTwoPlayer || false;
 
   // ---- 标题'噗噗鸟' ----
   var titleY = C.GAME_TOP + 40;
-  C.drawText(ctx, '噗噗鸟', C.W / 2, titleY, 24, t.textPri, true);
+  C.drawText(ctx, '噗噗鸟', C.W / 2, titleY, 24, t.btnText, true);
 
-  // ---- 副标题（两行规则说明） ----
+  // ---- 副标题 ----
   var subY = titleY + 28;
-  C.drawText(ctx, '轻按跳跃 穿越管道', C.W / 2, subY, 12, t.textSec, false);
-  C.drawText(ctx, '按住蓄力 收集星星', C.W / 2, subY + 18, 12, t.textSec, false);
+  C.drawText(ctx, '治愈飞行日记', C.W / 2, subY, 11, t.textSec, false);
 
   // ---- 积分（返回按钮下方：钻石图形 + 数字） ----
   var diamondCX = 30, diamondCY = C.SAFE_TOP + 44;
@@ -153,7 +153,7 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.strokeStyle = '#FFFFFF';
   ctx.lineWidth = 1.5;
   ctx.stroke();
-  C.drawTextLeft(ctx, points.toString(), diamondCX + dw + 5, diamondCY, 13, t.textPri, true);
+  C.drawTextLeft(ctx, points.toString(), diamondCX + dw + 5, diamondCY, 13, t.btnText, true);
 
   // ---- 小鸟 logo（titleY + 200） ----
   var logoY = titleY + 200;
@@ -205,7 +205,7 @@ function drawStartScreen(ctx, t, stateData) {
   if (!avatarEnabled) {
     var badgeR = 5;
     var badgeCX = btn2CX + 9, badgeCY = btnRowY - 9;
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = t.surfaceBg;
     ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = t.accent;
     ctx.lineWidth = 1;
@@ -274,7 +274,7 @@ function drawStartScreen(ctx, t, stateData) {
   var startBtnCY = btnRowY + 50;
 
   // 阴影
-  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fillStyle = t.startShadow;
   C.roundRect(ctx, startBtnX, startBtnCY - startBtnH / 2 + 2, startBtnW, startBtnH, 20);
   ctx.fill();
 
@@ -292,7 +292,51 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.stroke();
   ctx.restore();
 
-  C.drawText(ctx, '开始', C.W / 2, startBtnCY, 16, '#FFFFFF', true);
+  C.drawText(ctx, '开始', C.W / 2, startBtnCY, 16, t.btnText, true);
+
+  // ---- 模式切换（双 tab） ----
+  var tabW = 72, tabH = 30, tabGap = 6;
+  var totalTabW = tabW * 2 + tabGap;
+  var tabStartX = (C.W - totalTabW) / 2;
+  var tabCY = startBtnCY + 53;
+  // 单人 tab
+  var soloX = tabStartX;
+  if (!isTwoPlayer) {
+    ctx.fillStyle = t.accent;
+    C.roundRect(ctx, soloX, tabCY - tabH / 2, tabW, tabH, 15);
+    ctx.fill();
+    C.drawText(ctx, '单人', soloX + tabW / 2, tabCY, 12, t.btnText, true);
+  } else {
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 1.2;
+    C.roundRect(ctx, soloX, tabCY - tabH / 2, tabW, tabH, 15);
+    ctx.stroke();
+    C.drawText(ctx, '单人', soloX + tabW / 2, tabCY, 12, t.textPri, false);
+  }
+  // 双人 tab
+  var duoTabX = tabStartX + tabW + tabGap;
+  if (isTwoPlayer) {
+    ctx.fillStyle = t.accent;
+    C.roundRect(ctx, duoTabX, tabCY - tabH / 2, tabW, tabH, 15);
+    ctx.fill();
+    C.drawText(ctx, '双人', duoTabX + tabW / 2, tabCY, 12, t.btnText, true);
+  } else {
+    ctx.strokeStyle = t.accent;
+    ctx.lineWidth = 1.2;
+    C.roundRect(ctx, duoTabX, tabCY - tabH / 2, tabW, tabH, 15);
+    ctx.stroke();
+    C.drawText(ctx, '双人', duoTabX + tabW / 2, tabCY, 12, t.textPri, false);
+  }
+
+  // 玩法说明（跟随模式切换）
+  var hintY = tabCY + 33;
+  if (isTwoPlayer) {
+    C.drawText(ctx, '左右分屏 · 各控一鸟', C.W / 2, hintY, 10, t.textSec, false);
+    C.drawText(ctx, '绳索相连 · 携手穿越', C.W / 2, hintY + 14, 10, t.textSec, false);
+  } else {
+    C.drawText(ctx, '轻按跳跃 · 按住蓄力', C.W / 2, hintY, 10, t.textSec, false);
+    C.drawText(ctx, '穿越管道 · 收集星星', C.W / 2, hintY + 14, 10, t.textSec, false);
+  }
 
   ctx.textAlign = 'left';
 }
@@ -304,7 +348,7 @@ function drawThemePanel(ctx, t, stateData) {
   var currentTheme = stateData.currentTheme;
 
   // 半透明遮罩
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillStyle = t.surfaceOverlay;
   ctx.fillRect(0, 0, C.W, C.H);
 
   // 面板几何
@@ -312,12 +356,12 @@ function drawThemePanel(ctx, t, stateData) {
   var px = (C.W - pw) / 2, py = (C.H - ph) / 2;
 
   // 阴影
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillStyle = t.surfaceShadow;
   C.roundRect(ctx, px + 2, py + 3, pw, ph, 18);
   ctx.fill();
 
   // 白色面板
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = t.surfaceBg;
   C.roundRect(ctx, px, py, pw, ph, 18);
   ctx.fill();
 
@@ -326,7 +370,7 @@ function drawThemePanel(ctx, t, stateData) {
 
   // 关闭按钮 x
   var closeCX = px + pw - 22, closeCY = py + 18;
-  ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  ctx.fillStyle = t.surfaceClose;
   ctx.beginPath(); ctx.arc(closeCX, closeCY, 12, 0, Math.PI * 2); ctx.fill();
   C.drawText(ctx, '✕', closeCX, closeCY, 13, '#999', true);
 
@@ -380,7 +424,7 @@ function drawThemePanel(ctx, t, stateData) {
     ctx.textBaseline = 'alphabetic';
     if (unlocked) {
       if (isCurrent) {
-        ctx.fillStyle = t.accent;
+        ctx.fillStyle = t.accentDark;
         ctx.font = 'bold 10px sans-serif';
         ctx.fillText('✓ 使用中', stX, rowY + rowH / 2 + 10 * 0.35);
       } else {
@@ -390,14 +434,14 @@ function drawThemePanel(ctx, t, stateData) {
       }
     } else {
       var canAfford = points >= th.unlock;
-      ctx.fillStyle = canAfford ? t.accent : '#CCCCCC';
+      ctx.fillStyle = canAfford ? t.accentDark : '#CCCCCC';
       ctx.font = '10px sans-serif';
       ctx.fillText(th.unlock + '分', stX, rowY + rowH / 2 + 10 * 0.35);
     }
 
     // 分隔线
     if (i < keys.length - 1) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      ctx.strokeStyle = t.surfaceDivider;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(px + 20, rowY + rowH);
@@ -417,7 +461,7 @@ function drawAccessoryPanel(ctx, t, stateData) {
   var unlockedAccessories = stateData.unlockedAccessories || { none: true };
 
   // 半透明遮罩
-  ctx.fillStyle = 'rgba(0,0,0,0.45)';
+  ctx.fillStyle = t.surfaceOverlay;
   ctx.fillRect(0, 0, C.W, C.H);
 
   // 面板几何
@@ -425,12 +469,12 @@ function drawAccessoryPanel(ctx, t, stateData) {
   var px = (C.W - pw) / 2, py = (C.H - ph) / 2;
 
   // 阴影
-  ctx.fillStyle = 'rgba(0,0,0,0.12)';
+  ctx.fillStyle = t.surfaceShadow;
   C.roundRect(ctx, px + 2, py + 3, pw, ph, 18);
   ctx.fill();
 
   // 白色面板
-  ctx.fillStyle = '#FFFFFF';
+  ctx.fillStyle = t.surfaceBg;
   C.roundRect(ctx, px, py, pw, ph, 18);
   ctx.fill();
 
@@ -439,7 +483,7 @@ function drawAccessoryPanel(ctx, t, stateData) {
 
   // 关闭按钮 x
   var closeCX = px + pw - 22, closeCY = py + 18;
-  ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  ctx.fillStyle = t.surfaceClose;
   ctx.beginPath(); ctx.arc(closeCX, closeCY, 12, 0, Math.PI * 2); ctx.fill();
   C.drawText(ctx, '✕', closeCX, closeCY, 13, '#999', true);
 
@@ -500,7 +544,7 @@ function drawAccessoryPanel(ctx, t, stateData) {
     ctx.textBaseline = 'alphabetic';
     if (unlocked) {
       if (isCurrent) {
-        ctx.fillStyle = t.accent;
+        ctx.fillStyle = t.accentDark;
         ctx.font = 'bold 10px sans-serif';
         ctx.fillText('✓ 使用中', stX, rowY + rowH / 2 + 10 * 0.35);
       } else {
@@ -511,14 +555,14 @@ function drawAccessoryPanel(ctx, t, stateData) {
     } else {
       var accCost = acc.cost || 0;
       var canAfford = points >= accCost;
-      ctx.fillStyle = canAfford ? t.accent : '#CCCCCC';
+      ctx.fillStyle = canAfford ? t.accentDark : '#CCCCCC';
       ctx.font = '10px sans-serif';
       ctx.fillText(accCost + '分', stX, rowY + rowH / 2 + 10 * 0.35);
     }
 
     // 分隔线
     if (i < C.ACC_KEYS.length - 1) {
-      ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+      ctx.strokeStyle = t.surfaceDivider;
       ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(px + 20, rowY + rowH);
@@ -544,25 +588,25 @@ function drawGameOverPanel(ctx, t, stateData) {
   var py = panelCenter - ph / 2;
 
   // 阴影
-  ctx.fillStyle = 'rgba(180,160,170,0.15)';
+  ctx.fillStyle = t.cardShadow;
   C.roundRect(ctx, px + 2, py + 3, pw, ph, 20);
   ctx.fill();
 
-  // 面板背景
-  ctx.fillStyle = 'rgba(255,252,250,0.95)';
+  // 面板背景（半透明，浮动在死亡场景上）
+  ctx.fillStyle = t.overBg;
   C.roundRect(ctx, px, py, pw, ph, 20);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(220,200,210,0.35)';
+  ctx.strokeStyle = t.overBorder;
   ctx.lineWidth = 0.5;
   C.roundRect(ctx, px, py, pw, ph, 20);
   ctx.stroke();
 
   // 标题
   var titleY = py + 30;
-  C.drawText(ctx, '游戏结束', px + pw / 2, titleY, 11, t.textSec, true);
+  C.drawText(ctx, stateData.isTwoPlayer ? '合作结束' : '游戏结束', px + pw / 2, titleY, 11, t.textSec, true);
 
   // 分隔线
-  ctx.fillStyle = 'rgba(220,200,210,0.3)';
+  ctx.fillStyle = t.overDivider;
   ctx.fillRect(px + 24, py + 46, pw - 48, 0.5);
 
   // 分数区
@@ -643,7 +687,7 @@ function drawGameOverPanel(ctx, t, stateData) {
   ctx.stroke();
   ctx.restore();
 
-  C.drawText(ctx, '再来一次', C.W / 2, btnY + btnH / 2, 15, '#FFFFFF', true);
+  C.drawText(ctx, '再来一次', C.W / 2, btnY + btnH / 2, 15, t.btnText, true);
 
   ctx.textAlign = 'left';
 }
@@ -657,30 +701,61 @@ function drawMemorialScreen(ctx, t, stateData) {
   var petals = stateData.petals;
   var userAvatarUrl = stateData.userAvatarUrl;
 
-  // 背景
+  // ---- 背景 ----
   ctx.fillStyle = t.bgCard;
   ctx.fillRect(0, 0, C.W, C.H);
 
-  // 卡片区域
+  // ---- 卡片 ----
   var cardW = C.W * 0.82, cardH = C.H * 0.55;
   var cardX = (C.W - cardW) / 2;
   var cardY = C.GAME_TOP + C.GAME_H * 0.05;
 
   // 卡片阴影
-  ctx.fillStyle = 'rgba(180,160,170,0.15)';
-  C.roundRect(ctx, cardX + 2, cardY + 3, cardW, cardH, 24);
+  ctx.fillStyle = t.cardShadow;
+  C.roundRect(ctx, cardX + 2, cardY + 4, cardW, cardH, 24);
   ctx.fill();
 
-  // 卡片背景
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  // 卡片背景（统一素白）
+  ctx.fillStyle = t.cardBg;
   C.roundRect(ctx, cardX, cardY, cardW, cardH, 24);
   ctx.fill();
-  ctx.strokeStyle = t.accent;
-  ctx.globalAlpha = 0.3;
+
+  // 顶部强调色条
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cardX + 24, cardY, cardW - 48, 4);
+  ctx.clip();
+  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(cardX + 24, cardY, cardW - 48, 4);
+  ctx.restore();
+
+  // 卡片描边
+  ctx.strokeStyle = t.accentDark;
+  ctx.globalAlpha = 0.4;
   ctx.lineWidth = 1;
   C.roundRect(ctx, cardX, cardY, cardW, cardH, 24);
   ctx.stroke();
+
+  // 四角装饰小圆点
+  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.35;
+  var dotR = 2.5, dotM = 18;
+  ctx.beginPath(); ctx.arc(cardX + dotM, cardY + dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + cardW - dotM, cardY + dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + dotM, cardY + cardH - dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + cardW - dotM, cardY + cardH - dotM, dotR, 0, Math.PI * 2); ctx.fill();
   ctx.globalAlpha = 1;
+
+  // ---- 花瓣飘落在卡片内部 ----
+  if (petals.length > 0) {
+    ctx.save();
+    ctx.beginPath();
+    C.roundRect(ctx, cardX + 2, cardY + 2, cardW - 4, cardH - 4, 22);
+    ctx.clip();
+    Particles.drawPetals(ctx, petals);
+    ctx.restore();
+  }
 
   // 头像 / 占位符
   var avatarCY = cardY + 22, avatarR = 16;
@@ -692,7 +767,7 @@ function drawMemorialScreen(ctx, t, stateData) {
     var scale = (avatarR * 2) / Math.min(_memAvatarImg.width, _memAvatarImg.height);
     ctx.drawImage(_memAvatarImg, C.W / 2 - _memAvatarImg.width * scale / 2, avatarCY - _memAvatarImg.height * scale / 2, _memAvatarImg.width * scale, _memAvatarImg.height * scale);
     ctx.restore();
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.strokeStyle = t.cardAvatarRing;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(C.W / 2, avatarCY, avatarR, 0, Math.PI * 2);
@@ -741,7 +816,7 @@ function drawMemorialScreen(ctx, t, stateData) {
   // 分享好友
   var shareBtnX = btnRowX;
   ctx.fillStyle = t.accent;
-  ctx.globalAlpha = 0.15;
+  ctx.globalAlpha = 0.22;
   C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -749,12 +824,12 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.lineWidth = 1;
   C.roundRect(ctx, shareBtnX, btnAreaY, btnW, btnH, 20);
   ctx.stroke();
-  C.drawText(ctx, '分享好友', shareBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.textPri, true);
+  C.drawText(ctx, '分享好友', shareBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.btnText, true);
 
   // 朋友圈
   var timelineBtnX = btnRowX + btnW + btnSpacing;
   ctx.fillStyle = t.accent;
-  ctx.globalAlpha = 0.15;
+  ctx.globalAlpha = 0.22;
   C.roundRect(ctx, timelineBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -762,14 +837,14 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.lineWidth = 1;
   C.roundRect(ctx, timelineBtnX, btnAreaY, btnW, btnH, 20);
   ctx.stroke();
-  C.drawText(ctx, '朋友圈', timelineBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.textPri, true);
+  C.drawText(ctx, '朋友圈', timelineBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.btnText, true);
 
   // 转发图片（含保存相册）
   var saveBtnX = btnRowX + (btnW + btnSpacing) * 2;
   ctx.fillStyle = t.accent;
   C.roundRect(ctx, saveBtnX, btnAreaY, btnW, btnH, 20);
   ctx.fill();
-  C.drawText(ctx, '转发图片', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 12, '#fff', true);
+  C.drawText(ctx, '转发图片', saveBtnX + btnW / 2, btnAreaY + btnH / 2, 12, t.btnText, true);
 
   // 再来一次
   var replayBtnW = C.W * 0.5, replayBtnH = 42;
@@ -778,12 +853,9 @@ function drawMemorialScreen(ctx, t, stateData) {
   ctx.fillStyle = t.accent;
   C.roundRect(ctx, replayBtnX, btnAreaY, replayBtnW, replayBtnH, 20);
   ctx.fill();
-  C.drawText(ctx, '再来一次', replayBtnX + replayBtnW / 2, btnAreaY + replayBtnH / 2, 15, '#FFFFFF', true);
+  C.drawText(ctx, '再来一次', replayBtnX + replayBtnW / 2, btnAreaY + replayBtnH / 2, 15, t.btnText, true);
 
   ctx.textAlign = 'left';
-
-  // 花瓣在纪念卡画面上继续飘
-  if (petals.length > 0) Particles.drawPetals(ctx, petals);
 }
 
 // ==================== 触摸命中检测 ====================
@@ -905,6 +977,24 @@ function hitTestMenu(tx, ty, stateData) {
   if (tx >= startBtnX && tx <= startBtnX + startBtnW &&
       ty >= startBtnCY - startBtnH / 2 && ty <= startBtnCY + startBtnH / 2) {
     return { action: 'startGame' };
+  }
+
+  // 模式切换双 tab
+  var tabW = 72, tabH = 30, tabGap = 6;
+  var totalTabW = tabW * 2 + tabGap;
+  var tabStartX = (C.W - totalTabW) / 2;
+  var tabCY = startBtnCY + 53;
+  if (ty >= tabCY - tabH / 2 && ty <= tabCY + tabH / 2) {
+    // 单人 tab
+    if (tx >= tabStartX && tx <= tabStartX + tabW) {
+      if (!stateData.isTwoPlayer) return null; // 已经是单人
+      return { action: 'toggleMode' };
+    }
+    // 双人 tab
+    if (tx >= tabStartX + tabW + tabGap && tx <= tabStartX + totalTabW) {
+      if (stateData.isTwoPlayer) return null; // 已经是双人
+      return { action: 'toggleMode' };
+    }
   }
 
   // 其他区域：不做任何事
@@ -1105,9 +1195,10 @@ function handlePanelTouch(tx, ty, e, stateData) {
 }
 
 // ==================== 蓄力指示条（鸟上方） ====================
-function drawChargeBar(ctx, chargeRatio, theme, birdY) {
+function drawChargeBar(ctx, chargeRatio, theme, birdY, birdX) {
   var t = C.getT(theme);
-  var barX = C.BIRD_X - C.BIRD_SIZE * 0.6, barY = birdY - C.BIRD_SIZE * 0.7, barW = C.BIRD_SIZE * 1.2, barH = 5;
+  birdX = birdX || C.BIRD_X;
+  var barX = birdX - C.BIRD_SIZE * 0.6, barY = birdY - C.BIRD_SIZE * 0.7, barW = C.BIRD_SIZE * 1.2, barH = 5;
   // 发光背景
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
@@ -1186,12 +1277,60 @@ function hitTestDebug(tx, ty, paneling) {
   return null;
 }
 
+// ==================== 双人模式绳索 ====================
+function drawRope(ctx, birdA, birdB, t) {
+  if (!birdA || !birdB) return;
+  var midX = (birdA.x + birdB.x) / 2;
+  var midY = (birdA.y + birdB.y) / 2;
+  var dx = birdB.x - birdA.x;
+  var dy = birdB.y - birdA.y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  var sag = Math.max(0, dist * 0.12);
+  var cpX = midX;
+  var cpY = midY + sag + 4;
+
+  // 绳索阴影
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(birdA.x, birdA.y + 1);
+  ctx.quadraticCurveTo(cpX, cpY + 1, birdB.x, birdB.y + 1);
+  ctx.stroke();
+  ctx.restore();
+
+  // 绳索主线
+  ctx.strokeStyle = t.accentDark;
+  ctx.lineWidth = 1.8;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(birdA.x, birdA.y);
+  ctx.quadraticCurveTo(cpX, cpY, birdB.x, birdB.y);
+  ctx.stroke();
+
+  // 中点装饰结
+  var knotR = 3.5;
+  var knotX = midX;
+  var knotY = midY + sag * 0.4 + 2;
+  ctx.fillStyle = t.accent;
+  ctx.beginPath();
+  ctx.arc(knotX, knotY, knotR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(knotX, knotY, knotR * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+}
+
 module.exports = {
   drawBackButton: drawBackButton,
   drawSky: drawSky,
   drawGround: drawGround,
   drawScorePanel: drawScorePanel,
   drawChargeBar: drawChargeBar,
+  drawRope: drawRope,
   drawStartScreen: drawStartScreen,
   drawThemePanel: drawThemePanel,
   drawAccessoryPanel: drawAccessoryPanel,

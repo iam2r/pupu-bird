@@ -73,14 +73,40 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
   }
 
   // 白色卡面
-  var cardTop = 70, cardBottom = 980, cardH = cardBottom - cardTop;
-  ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  C.roundRect(ctx, 60, cardTop, cw - 120, cardH, 40);
+  var cardX = 60, cardTop = 70, cardBottom = 980, cardW = cw - 120, cardH = cardBottom - cardTop, cardR = 40;
+  // 卡片阴影
+  ctx.fillStyle = t.cardShadow;
+  C.roundRect(ctx, cardX + 3, cardTop + 5, cardW, cardH, cardR);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(200,180,190,0.35)';
+  // 卡片背景（统一素白）
+  ctx.fillStyle = t.cardBg;
+  C.roundRect(ctx, cardX, cardTop, cardW, cardH, cardR);
+  ctx.fill();
+  // 顶部强调色条
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cardX + cardR, cardTop, cardW - cardR * 2, 8);
+  ctx.clip();
+  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.5;
+  ctx.fillRect(cardX + cardR, cardTop, cardW - cardR * 2, 8);
+  ctx.restore();
+  // 四角装饰圆点
+  ctx.fillStyle = t.accent;
+  ctx.globalAlpha = 0.35;
+  var dotR = 5, dotM = 40;
+  ctx.beginPath(); ctx.arc(cardX + dotM, cardTop + dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + cardW - dotM, cardTop + dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + dotM, cardTop + cardH - dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cardX + cardW - dotM, cardTop + cardH - dotM, dotR, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1;
+  // 卡片描边
+  ctx.strokeStyle = t.accentDark;
+  ctx.globalAlpha = 0.35;
   ctx.lineWidth = 2;
-  C.roundRect(ctx, 60, cardTop, cw - 120, cardH, 40);
+  C.roundRect(ctx, cardX, cardTop, cardW, cardH, cardR);
   ctx.stroke();
+  ctx.globalAlpha = 1;
 
   // 微信头像（卡片内部顶部，留足间距）
   var avatarCY = cardTop + 70, avatarR = 36;
@@ -99,7 +125,7 @@ function renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, 
       ctx.restore();
     }
     // 边框
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.strokeStyle = t.cardAvatarRing;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(cw / 2, avatarCY, avatarR, 0, Math.PI * 2);

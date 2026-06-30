@@ -4,7 +4,7 @@
 var C = require('./config.js');
 
 function loadData() {
-  var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points, avatarEnabled, rankingBest;
+  var best, currentTheme, currentAccessory, unlockedThemes, unlockedAccessories, dailyDate, dailyBest, points, avatarEnabled, rankingBest, rankingBest2P;
   try {
     var raw = wx.getStorageSync('pupu_bird_data');
     if (raw) {
@@ -18,23 +18,20 @@ function loadData() {
       dailyBest = d.dailyBest || 0;
       avatarEnabled = d.avatarEnabled || false;
       rankingBest = d.rankingBest || 0;
+      rankingBest2P = d.rankingBest2P || 0;
     } else {
-      best = 0;
-      currentTheme = 'sakura';
-      currentAccessory = 'none';
+      best = 0; currentTheme = 'sakura'; currentAccessory = 'none';
       unlockedThemes = { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
       unlockedAccessories = { none: true };
-      dailyDate = '';
-      dailyBest = 0;
-      avatarEnabled = false;
-      rankingBest = 0;
+      dailyDate = ''; dailyBest = 0; avatarEnabled = false;
+      rankingBest = 0; rankingBest2P = 0;
     }
   } catch(e) {
     best = 0; currentTheme = 'sakura'; currentAccessory = 'none';
     unlockedThemes = { sakura: true, starry: false, ocean: false, forest: false, sunset: false, lavender: false, mint: false, coral: false, midnight: false, rose: false };
     unlockedAccessories = { none: true };
     dailyDate = ''; dailyBest = 0; avatarEnabled = false;
-    rankingBest = 0;
+    rankingBest = 0; rankingBest2P = 0;
   }
   points = wx.getStorageSync('pupu_bird_points') || 0;
 
@@ -52,7 +49,8 @@ function loadData() {
     dailyBest: dailyBest,
     points: points,
     avatarEnabled: avatarEnabled,
-    rankingBest: rankingBest
+    rankingBest: rankingBest,
+    rankingBest2P: rankingBest2P
   };
 }
 
@@ -67,7 +65,8 @@ function saveData(data) {
       dailyDate: data.dailyDate,
       dailyBest: data.dailyBest,
       avatarEnabled: data.avatarEnabled,
-      rankingBest: data.rankingBest
+      rankingBest: data.rankingBest,
+      rankingBest2P: data.rankingBest2P
     }));
   } catch(e) {}
 }

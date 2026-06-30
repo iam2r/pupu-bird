@@ -132,44 +132,44 @@ function playStarPickup() {
 
 // ---- 蓄力音效：持续嗡声 + 释放音 ----
 var _chargeOsc = null, _chargeGain = null;
+var _chargeOsc2 = null, _chargeGain2 = null; // 双人模式第二只鸟
 
-function startCharge() {
-  var ctx = ensureCtx();
-  if (!ctx || _chargeOsc) return;
+function _initChargeOsc() {
+  var ctx = audioCtx;
+  if (!ctx) return null;
   try {
-    _chargeOsc = ctx.createOscillator();
-    _chargeGain = ctx.createGain();
-    _chargeOsc.type = 'sine';
-    _chargeOsc.frequency.value = 250;
-    _chargeGain.gain.value = 0;
-    _chargeOsc.connect(_chargeGain);
-    _chargeGain.connect(ctx.destination);
-    _chargeOsc.start();
-  } catch (e) { _chargeOsc = null; _chargeGain = null; }
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 250;
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    return { osc: osc, gain: gain };
+  } catch (e) { return null; }
 }
 
-function updateCharge(ratio) {
-  if (!_chargeOsc || !_chargeGain) return;
+function _updateChargeOsc(pair, ratio) {
+  if (!pair || !pair.osc || !pair.gain) return;
   try {
-    _chargeOsc.frequency.value = 250 + ratio * 450;
-    _chargeGain.gain.value = ratio * 0.06;
+    pair.osc.frequency.value = 250 + ratio * 450;
+    pair.gain.gain.value = ratio * 0.06;
   } catch (e) {}
 }
 
-function stopCharge(ratio) {
-  if (!_chargeGain || !_chargeOsc) return;
+function _stopChargeOsc(pair, ratio) {
+  if (!pair || !pair.gain || !pair.osc) return;
   var ctx = audioCtx;
   try {
-    _chargeGain.gain.cancelScheduledValues(ctx.currentTime);
-    _chargeGain.gain.setValueAtTime(_chargeGain.gain.value, ctx.currentTime);
-    _chargeGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-    var osc = _chargeOsc, gain = _chargeGain;
+    pair.gain.gain.cancelScheduledValues(ctx.currentTime);
+    pair.gain.gain.setValueAtTime(pair.gain.gain.value, ctx.currentTime);
+    pair.gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+    var osc = pair.osc, gain = pair.gain;
     setTimeout(function() {
       try { osc.stop(); } catch (e) {}
     }, 100);
   } catch (e) {}
-  _chargeOsc = null; _chargeGain = null;
-  // 释放爆发音
   if (ratio > 0.01) {
     var c = ensureCtx(); if (!c) return;
     var n = c.currentTime;
@@ -182,6 +182,45 @@ function stopCharge(ratio) {
     o.connect(g); g.connect(c.destination);
     o.start(n); o.stop(n + 0.15);
   }
+}
+
+function startCharge() {
+  var ctx = ensureCtx();
+  if (!ctx || _chargeOsc) return;
+  var pair = _initChargeOsc();
+  if (pair) { _chargeOsc = pair.osc; _chargeGain = pair.gain; }
+}
+
+function updateCharge(ratio) {
+  if (!_chargeOsc) return;
+  _updateChargeOsc({ osc: _chargeOsc, gain: _chargeGain }, ratio);
+}
+
+function stopCharge(ratio) {
+  if (!_chargeGain || !_chargeOsc) return;
+  var pair = { osc: _chargeOsc, gain: _chargeGain };
+  _chargeOsc = null; _chargeGain = null;
+  _stopChargeOsc(pair, ratio);
+}
+
+// 双人模式第二通道
+function startCharge2() {
+  var ctx = ensureCtx();
+  if (!ctx || _chargeOsc2) return;
+  var pair = _initChargeOsc();
+  if (pair) { _chargeOsc2 = pair.osc; _chargeGain2 = pair.gain; }
+}
+
+function updateCharge2(ratio) {
+  if (!_chargeOsc2) return;
+  _updateChargeOsc({ osc: _chargeOsc2, gain: _chargeGain2 }, ratio);
+}
+
+function stopCharge2(ratio) {
+  if (!_chargeGain2 || !_chargeOsc2) return;
+  var pair = { osc: _chargeOsc2, gain: _chargeGain2 };
+  _chargeOsc2 = null; _chargeGain2 = null;
+  _stopChargeOsc(pair, ratio);
 }
 
 // ---- 无敌激活：上行琶音 ----
@@ -282,6 +321,8 @@ function playCombo(level) {
 
 // ---- 销毁 ----
 function destroy() {
+  _chargeOsc = null; _chargeGain = null;
+  _chargeOsc2 = null; _chargeGain2 = null;
   if (audioCtx) {
     try { audioCtx.close(); } catch (e) {}
     audioCtx = null;
@@ -298,6 +339,9 @@ module.exports = {
   startCharge: startCharge,
   updateCharge: updateCharge,
   stopCharge: stopCharge,
+  startCharge2: startCharge2,
+  updateCharge2: updateCharge2,
+  stopCharge2: stopCharge2,
   playInvincible: playInvincible,
   playInvincibleCountdown: playInvincibleCountdown,
   resetInvincibleBeep: resetInvincibleBeep,
