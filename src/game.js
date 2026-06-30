@@ -1489,12 +1489,13 @@ function onTouch(e) {
           var key = tp.clientX < C.TOUCH_SPLIT_X ? 'A' : 'B';
           newMap[tp.identifier] = key;
           var bd = key === 'A' ? birdA : birdB;
+          // 任何触控都唤醒对方（即使不蓄力）
+          var otherBd = key === 'A' ? birdB : birdA;
+          if (otherBd && otherBd.alive && otherBd.stunned) { otherBd.stunned = false; otherBd.invincibleTimer = 0.5; otherBd.wakeFlash = 0.4; }
+          // 开始蓄力
           if (!_activeTouchMap[tp.identifier] && bd.alive && !bd.stunned && !bd.isCharging) {
             bd.isCharging = true; bd.chargeStartTime = Date.now(); bd.chargeWasFull = false;
             if (key === 'A') Sound.startCharge(); else Sound.startCharge2();
-            // 活鸟蓄力唤醒眩晕对方
-            var otherBd = key === 'A' ? birdB : birdA;
-            if (otherBd && otherBd.alive && otherBd.stunned) { otherBd.stunned = false; otherBd.invincibleTimer = 0.15; otherBd.wakeFlash = 0.4; }
           }
         }
         // 松开的触控→释放跳跃
