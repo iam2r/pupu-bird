@@ -94,8 +94,10 @@ function _applyRopeConstraint(s) {
 
 function _hitBird(bird, other) {
   if (!isTwoPlayer || !bird.alive) return;
+  console.log('[STUN] hit! bird:', bird === birdA ? 'A' : 'B', 'stunned:', bird.stunned, 'score:', score);
   // 已眩晕再撞 → 死
   if (bird.stunned) {
+    console.log('[STUN] already stunned -> die');
     bird.alive = false;
     Sound.playDie();
     var t2 = C.getT(currentTheme);
@@ -104,6 +106,7 @@ function _hitBird(bird, other) {
     return;
   }
   // 首次碰撞 → 眩晕1秒
+  console.log('[STUN] first hit -> stunned');
   bird.stunned = true;
   bird.stunTimer = 1.0;
   if (bird.isCharging) {
@@ -715,12 +718,12 @@ function update(dt) {
 
     // 碰撞检测（各自无敌）
     if (birdA.alive && birdA.invincibleTimer <= 0) {
-      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) _hitBird(birdA, birdB);
-      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { _hitBird(birdA, birdB); break; } }
+      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) { console.log('[COLLIDE] A out of bounds'); _hitBird(birdA, birdB); }
+      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { console.log('[COLLIDE] A hit pipe'); _hitBird(birdA, birdB); break; } }
     }
     if (birdB.alive && birdB.invincibleTimer <= 0 && state === C.STATE.PLAYING) {
-      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) _hitBird(birdB, birdA);
-      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { _hitBird(birdB, birdA); break; } }
+      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) { console.log('[COLLIDE] B out of bounds'); _hitBird(birdB, birdA); }
+      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { console.log('[COLLIDE] B hit pipe'); _hitBird(birdB, birdA); break; } }
     }
     return;
   }
