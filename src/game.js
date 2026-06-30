@@ -45,6 +45,9 @@ var leaderboardMode = 0; // 0=单人榜 1=双人榜
 
 // ---- 花瓣粒子 ----
 var petals = [];
+// ---- 得分飞行文字 ----
+var scoreFlyTexts = [];
+var scoreFlash = 0;   // 分数面板闪烁计时器
 
 // ---- 纪念卡 ----
 var memorialMsg;
@@ -59,12 +62,10 @@ var birdA = null, birdB = null;
 var _activeTouchMap = {};     // { touchId: 'A'|'B' }
 var _activeCountA = 0, _activeCountB = 0;
 var _splitLineTimer = 0;      // 双人开场分屏线倒计时
-var autoItem = false;         // 自动使用道具
-
 // ---- 道具系统 ----
 var items = [];              // 漂浮盲盒 [{x,y,collected,type,opened,phase}]
-var backpack = [];           // 道具背包 [type, type] 最多两格
-var activeItem = null;       // 当前激活道具 {type, timer}
+var activeItem = null;       // 当前激活道具（单人/双人鸟A） {type, timer}
+var activeItemB = null;      // 当前激活道具（双人鸟B）
 
 function _createBirdState(bx) {
   return {
@@ -94,19 +95,12 @@ function _applyRopeConstraint(s) {
 
 function _hitBird(bird, other) {
   if (!isTwoPlayer || !bird.alive) return;
-  console.log('[STUN] hit! bird:', bird === birdA ? 'A' : 'B', 'stunned:', bird.stunned, 'score:', score);
-  // 已眩晕再撞 → 死
+  // 已眩晕再撞 → 保持眩晕（不致死，只有两只同时晕才死）
   if (bird.stunned) {
-    console.log('[STUN] already stunned -> die');
-    bird.alive = false;
-    Sound.playDie();
-    var t2 = C.getT(currentTheme);
-    Particles.spawnDeathPetals(petals, bird.y, t2);
-    if (!birdA.alive && !birdB.alive) _finalizeDualDeath();
+    bird.stunTimer = 1.0; // 刷新眩晕时间
     return;
   }
-  // 首次碰撞 → 眩晕1秒
-  console.log('[STUN] first hit -> stunned');
+  // 首次碰撞 → 眩晕
   bird.stunned = true;
   bird.stunTimer = 1.0;
   if (bird.isCharging) {
@@ -117,9 +111,9 @@ function _hitBird(bird, other) {
   if (birdA.stunned && birdB.stunned) {
     birdA.alive = false; birdB.alive = false;
     Sound.playDie();
-    var t3 = C.getT(currentTheme);
-    Particles.spawnDeathPetals(petals, birdA.y, t3);
-    Particles.spawnDeathPetals(petals, birdB.y, t3);
+    var t2 = C.getT(currentTheme);
+    Particles.spawnDeathPetals(petals, birdA.y, t2);
+    Particles.spawnDeathPetals(petals, birdB.y, t2);
     _finalizeDualDeath();
   }
 }
@@ -243,6 +237,7 @@ function gotoMenu() {
   birdVY = 0;
   pipes = [];
   petals = [];
+  scoreFlyTexts = []; scoreFlash = 0;
   stars = [];
   score = 0;
   pipesPassed = 0;
@@ -255,7 +250,7 @@ function gotoMenu() {
   isTwoPlayer = false;
   birdA = null; birdB = null;
   _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
-  items = []; backpack = []; ; activeItem = null;
+  items = []; activeItem = null; activeItemB = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   state = C.STATE.MENU;
 }
@@ -266,6 +261,7 @@ function startGame() {
   birdVY = 0;
   pipes = [];
   petals = [];
+  scoreFlyTexts = []; scoreFlash = 0;
   stars = [];
   score = 0;
   pipesPassed = 0;
@@ -278,7 +274,7 @@ function startGame() {
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
-  items = []; backpack = []; activeItem = null;
+  items = []; activeItem = null; activeItemB = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
   if (isTwoPlayer) {
@@ -369,6 +365,7 @@ function restartGame() {
   birdVY = 0;
   pipes = [];
   petals = [];
+  scoreFlyTexts = []; scoreFlash = 0;
   stars = [];
   score = 0;
   pipesPassed = 0;
@@ -381,7 +378,7 @@ function restartGame() {
   invincibleTimer = 0;
   medalLevel = 0;
   shakeTimer = 0;
-  items = []; backpack = []; activeItem = null;
+  items = []; activeItem = null; activeItemB = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   destroyUserInfoButton();
   if (isTwoPlayer) {
@@ -547,6 +544,10 @@ function init(canvas, ctx, params) {
 
 function update(dt) {
   Particles.updatePetals(petals, dt, state);
+  if (scoreFlyTexts.length > 0) {
+    if (Particles.updateScoreFlies(scoreFlyTexts, dt, C.W / 2, C.GAME_TOP + 18) > 0) scoreFlash = 0.35;
+  }
+  if (scoreFlash > 0) scoreFlash = Math.max(0, scoreFlash - Math.min(dt, 0.1));
 
   if (state !== C.STATE.PLAYING && state !== C.STATE.DEAD) return;
 
@@ -605,6 +606,10 @@ function update(dt) {
     activeItem.timer -= s;
     if (activeItem.timer <= 0) activeItem = null;
   }
+  if (activeItemB) {
+    activeItemB.timer -= s;
+    if (activeItemB.timer <= 0) activeItemB = null;
+  }
 
   // ---- 双人模式：独立物理 + 绳索约束 + 碰撞 ----
   if (isTwoPlayer) {
@@ -662,7 +667,7 @@ function update(dt) {
       }
     }
 
-    // 管道移动 & 双鸟计分（取最大倍率）
+    // 管道移动 & 双鸟计分（取最大倍率 × 各自双倍道具）
     var scroll = C.SCROLL_SPEED * s;
     for (var pi = 0; pi < pipes.length; pi++) {
       var pp = pipes[pi];
@@ -672,8 +677,12 @@ function update(dt) {
       if (pp.passedByA && pp.passedByB && !pp.passed) {
         pp.passed = true;
         pipesPassed++;
-        var mxMul = Math.max(birdA.chargeMultiplier, birdB.chargeMultiplier);
-        score += 1 * mxMul;
+        var mA = birdA.chargeMultiplier * ((activeItem && activeItem.type === 'double') ? 2 : 1);
+        var mB = birdB.chargeMultiplier * ((activeItemB && activeItemB.type === 'double') ? 2 : 1);
+        var mxMul = Math.max(mA, mB);
+        var pipeScore = 1 * mxMul;
+        score += pipeScore;
+        if (scoreFlyTexts.length === 0 || scoreFlyTexts[scoreFlyTexts.length - 1].life < 0.15) Particles.spawnScoreFly(scoreFlyTexts, (birdA.x + birdB.x) / 2, (birdA.y + birdB.y) / 2, pipeScore);
         birdA.chargeMultiplier = 1; birdB.chargeMultiplier = 1;
         Sound.playScore();
         Particles.spawnPetals(petals, (birdA.x + birdB.x) / 2, (birdA.y + birdB.y) / 2, 8, t2, 80, 50);
@@ -690,13 +699,33 @@ function update(dt) {
       else if (bird.combo >= 5) cb = 3;
       else if (bird.combo >= 3) cb = 2;
       else if (bird.combo >= 2) cb = 1;
-      score += (starScore + cb) * bird.chargeMultiplier;
+      var birdItem = birdKey === 'A' ? activeItem : activeItemB;
+      var dbMul = (birdItem && birdItem.type === 'double') ? 2 : 1;
+      score += (starScore + cb) * bird.chargeMultiplier * dbMul;
       Sound.playCombo(bird.combo);
       Sound.playStarPickup();
       // 里程碑
       if (bird.combo % 3 === 0) { bird.invincibleTimer += Math.min(3.5, 2 + Math.floor(bird.combo / 3) * 0.5); Sound.playInvincible(); }
       else if (bird.combo === 5) { score += 15; }
       else if (bird.combo === 7) { score += 30; }
+    }
+
+    // 磁铁吸引星星（双人各自磁铁）
+    for (var si2 = 0; si2 < stars.length; si2++) {
+      var ax = 0, ay = 0;
+      if (activeItem && activeItem.type === 'magnet' && birdA.alive) {
+        var dxA = birdA.x - stars[si2].x;
+        var dyA = birdA.y - stars[si2].y;
+        var distA = Math.sqrt(dxA * dxA + dyA * dyA);
+        if (distA < C.W * 0.35 && distA > 1) { ax += dxA / distA * scroll * 4; ay += dyA / distA * scroll * 4; }
+      }
+      if (activeItemB && activeItemB.type === 'magnet' && birdB.alive) {
+        var dxB = birdB.x - stars[si2].x;
+        var dyB = birdB.y - stars[si2].y;
+        var distB = Math.sqrt(dxB * dxB + dyB * dyB);
+        if (distB < C.W * 0.35 && distB > 1) { ax += dxB / distB * scroll * 4; ay += dyB / distB * scroll * 4; }
+      }
+      stars[si2].x += ax; stars[si2].y += ay;
     }
 
     var birdR = C.BIRD_SIZE / 2;
@@ -716,15 +745,44 @@ function update(dt) {
       }
     }
 
-    // 碰撞检测（各自无敌）
+    // 碰撞检测（无敌或护盾免伤）
     if (birdA.alive && birdA.invincibleTimer <= 0) {
-      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) { console.log('[COLLIDE] A out of bounds'); _hitBird(birdA, birdB); }
-      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { console.log('[COLLIDE] A hit pipe'); _hitBird(birdA, birdB); break; } }
+      var aHit = birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM;
+      if (!aHit) for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { aHit = true; break; } }
+      if (aHit) {
+        if (activeItem && activeItem.type === 'shield') { activeItem = null; birdA.invincibleTimer = 0.4; }
+        else _hitBird(birdA, birdB);
+      }
     }
     if (birdB.alive && birdB.invincibleTimer <= 0 && state === C.STATE.PLAYING) {
-      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) { console.log('[COLLIDE] B out of bounds'); _hitBird(birdB, birdA); }
-      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { console.log('[COLLIDE] B hit pipe'); _hitBird(birdB, birdA); break; } }
+      var bHit = birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM;
+      if (!bHit) for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { bHit = true; break; } }
+      if (bHit) {
+        if (activeItemB && activeItemB.type === 'shield') { activeItemB = null; birdB.invincibleTimer = 0.4; }
+        else _hitBird(birdB, birdA);
+      }
     }
+
+	    // 道具移动 & 拾取（双人各自背包）
+	    for (var ii = 0; ii < items.length; ii++) {
+	      items[ii].x -= scroll;
+	      var pickedBy = null;
+	      if (birdA.alive && Item.checkPickup(items[ii], birdA.x, birdA.y, birdR)) pickedBy = 'A';
+	      else if (birdB.alive && Item.checkPickup(items[ii], birdB.x, birdB.y, birdR)) pickedBy = 'B';
+	      if (pickedBy) {
+	        items[ii].collected = true;
+	        if (items[ii].type === 'invincible') {
+	          var bd2 = pickedBy === 'A' ? birdA : birdB;
+	          bd2.invincibleTimer += C.BALANCE.itemDurations.invincible;
+	        } else {
+	          var newIt = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield };
+	          if (pickedBy === 'A') activeItem = newIt; else activeItemB = newIt;
+	        }
+	      }
+	    }
+	    for (ii = items.length - 1; ii >= 0; ii--) {
+	      if (items[ii].x < -20 || items[ii].collected) items.splice(ii, 1);
+	    }
     return;
   }
 
@@ -792,7 +850,9 @@ function update(dt) {
     if (Pipe.hasPassedPipe(p, C.BIRD_X)) {
       p.passed = true;
       pipesPassed++;
-      score += 1 * chargeMultiplier * mul;
+      var pipeScore = 1 * chargeMultiplier * mul;
+      score += pipeScore;
+      if (scoreFlyTexts.length === 0 || scoreFlyTexts[scoreFlyTexts.length - 1].life < 0.15) Particles.spawnScoreFly(scoreFlyTexts, C.BIRD_X, birdY, pipeScore);
       chargeMultiplier = 1;
       chargeBoostTimer = 0;
       Sound.playScore();
@@ -856,12 +916,8 @@ function update(dt) {
     items[ii].x -= scroll;
     if (Item.checkPickup(items[ii], C.BIRD_X, birdY, birdR)) {
       items[ii].collected = true;
-      if (autoItem) {
-        if (items[ii].type === 'invincible') { invincibleTimer += C.BALANCE.itemDurations.invincible; }
-        else { activeItem = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield }; }
-      } else if (backpack.length < C.BALANCE.backpackSlots) {
-        backpack.push(items[ii].type);
-      }
+      if (items[ii].type === 'invincible') { invincibleTimer += C.BALANCE.itemDurations.invincible; }
+      else { activeItem = { type: items[ii].type, timer: items[ii].type === 'double' ? C.BALANCE.itemDurations.double : items[ii].type === 'magnet' ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield }; }
     }
   }
   // 清除屏幕外道具/星星
@@ -900,21 +956,10 @@ function draw(ctx) {
       if (!items[ii].collected) Item.drawItem(ctx, items[ii]);
     }
   }
-  // 道具背包 + 激活提示
-  if (state === C.STATE.PLAYING) {
-    Item.drawBackpack(ctx, backpack, t, autoItem);
-    if (activeItem) {
-      var aIt = Item.ITEMS[activeItem.type];
-      ctx.fillStyle = aIt.color;
-      ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText(aIt.name + ' ' + Math.ceil(activeItem.timer) + 's', C.W / 2, C.GROUND_Y - 50);
-      ctx.textAlign = 'left';
-    }
-  }
+
 
   if (state === C.STATE.MENU) {
+    if (scoreFlyTexts.length > 0) Particles.drawScoreFlies(ctx, scoreFlyTexts);
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawStartScreen(ctx, t, {
       currentAccessory: currentAccessory,
@@ -967,31 +1012,107 @@ function draw(ctx) {
           ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 1.3, 0, Math.PI * 2);
           ctx.fill();
         }
+        // 状态文字排列
+        var labelY = bd.y + C.BIRD_SIZE * 0.7;
+        function _lbl(t, c) {
+          ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+          ctx.fillStyle = c; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 2;
+          ctx.strokeText(t, bd.x, labelY); ctx.fillText(t, bd.x, labelY);
+          labelY += 14;
+        }
         // 眩晕
         if (bd.alive && bd.stunned) {
           var stAlpha = 0.5 + 0.3 * Math.sin(Date.now() * 0.02);
-          // 身体黄光
           ctx.fillStyle = 'rgba(255,215,0,' + (stAlpha * 0.25) + ')';
-          ctx.beginPath();
-          ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 0.8, 0, Math.PI * 2);
-          ctx.fill();
-          // 大星旋转
+          ctx.beginPath(); ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 0.8, 0, Math.PI * 2); ctx.fill();
           for (var si = 0; si < 3; si++) {
             var sa = (si * Math.PI * 2) / 3 + Date.now() * 0.006;
             var sr = C.BIRD_SIZE * 0.6;
-            ctx.fillStyle = '#FFD700';
-            ctx.globalAlpha = stAlpha;
+            ctx.fillStyle = '#FFD700'; ctx.globalAlpha = stAlpha;
             ctx.beginPath();
             ctx.arc(bd.x + Math.cos(sa) * sr, bd.y - C.BIRD_SIZE * 0.9 + Math.sin(sa) * sr, 4, 0, Math.PI * 2);
             ctx.fill();
           }
-          // 眩晕图标
-          ctx.font = 'bold 16px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.globalAlpha = stAlpha;
-          ctx.fillStyle = '#FFD700';
+          ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
+          ctx.globalAlpha = stAlpha; ctx.fillStyle = '#FFD700';
           ctx.fillText('💫', bd.x, bd.y - C.BIRD_SIZE * 1.2);
           ctx.globalAlpha = 1;
+          _lbl('眩晕', '#FFD700');
+        }
+        // 无敌倒计时
+        if (bd.alive && bd.invincibleTimer > 0) {
+          _lbl('无敌 ' + bd.invincibleTimer.toFixed(1) + 's', '#FFD700');
+        }
+        // 护盾
+        var aIt = bd === birdA ? activeItem : activeItemB;
+        if (aIt && aIt.type === 'shield' && bd.alive) {
+          var shA = 0.5 + 0.2 * Math.sin(Date.now() * 0.01);
+          var shR = C.BIRD_SIZE * 1.05;
+          ctx.save(); ctx.globalAlpha = shA;
+          ctx.strokeStyle = '#5BB5F5'; ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#5BB5F5'; ctx.shadowBlur = 10;
+          ctx.beginPath();
+          for (var hi = 0; hi < 6; hi++) {
+            var ha = (hi * Math.PI) / 3 + Date.now() * 0.002;
+            var hx = bd.x + Math.cos(ha) * shR, hy = bd.y + Math.sin(ha) * shR;
+            if (hi === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath(); ctx.stroke();
+          ctx.strokeStyle = 'rgba(150,210,255,0.6)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+          ctx.beginPath();
+          for (hi = 0; hi < 6; hi++) {
+            ha = (hi * Math.PI) / 3 - Date.now() * 0.003;
+            hx = bd.x + Math.cos(ha) * shR * 0.85; hy = bd.y + Math.sin(ha) * shR * 0.85;
+            if (hi === 0) ctx.moveTo(hx, hy); else ctx.lineTo(hx, hy);
+          }
+          ctx.closePath(); ctx.stroke();
+          ctx.restore();
+          _lbl('护盾 ' + Math.ceil(aIt.timer) + 's', '#5BB5F5');
+        }
+        // 磁铁
+        aIt = bd === birdA ? activeItem : activeItemB;
+        if (aIt && aIt.type === 'magnet' && bd.alive) {
+          var mgA = 0.4 + 0.2 * Math.sin(Date.now() * 0.015);
+          var mgP = (Date.now() * 0.003) % 1;
+          ctx.save(); ctx.globalAlpha = mgA;
+          for (var mi = 0; mi < 3; mi++) {
+            var mp = (mgP + mi * 0.33) % 1;
+            var mr = C.BIRD_SIZE * (0.8 + mp * 1.2);
+            ctx.strokeStyle = '#B06EE0'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(bd.x, bd.y, mr, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.restore();
+          _lbl('磁铁 ' + Math.ceil(aIt.timer) + 's', '#B06EE0');
+        }
+        // 双倍 — 浮动 ×2 粒子（得分翻倍，非保护环）
+        aIt = bd === birdA ? activeItem : activeItemB;
+        if (aIt && aIt.type === 'double' && bd.alive) {
+          ctx.save();
+          // 柔和金色光晕（非环状）
+          var glow = ctx.createRadialGradient(bd.x, bd.y, C.BIRD_SIZE * 0.2, bd.x, bd.y, C.BIRD_SIZE * 0.9);
+          glow.addColorStop(0, 'rgba(255,200,0,0.18)');
+          glow.addColorStop(1, 'rgba(255,200,0,0)');
+          ctx.fillStyle = glow;
+          ctx.beginPath(); ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 0.9, 0, Math.PI * 2); ctx.fill();
+          // 浮动 ×2 粒子
+          for (var di = 0; di < 3; di++) {
+            var dp = ((Date.now() * 0.0012 + di * 0.33) % 1);
+            var da = di * Math.PI * 2 / 3 + Date.now() * 0.003;
+            var dr = C.BIRD_SIZE * (0.65 + dp * 0.5);
+            var dyOff = Math.sin(Date.now() * 0.006 + di) * 5;
+            var dx2 = bd.x + Math.cos(da) * dr;
+            var dy2 = bd.y + Math.sin(da) * dr + dyOff - dp * 10;
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#FFD700';
+            ctx.shadowColor = '#FFD700';
+            ctx.shadowBlur = 5;
+            ctx.globalAlpha = 0.35 + dp * 0.5;
+            ctx.fillText('×2', dx2, dy2);
+          }
+          ctx.shadowBlur = 0;
+          ctx.restore();
+          _lbl('双倍 ' + Math.ceil(aIt.timer) + 's', '#FFD700');
         }
       });
       UI.drawRope(ctx, birdA, birdB, t);
@@ -1021,30 +1142,25 @@ function draw(ctx) {
         ctx.fillText('B', C.TOUCH_SPLIT_X + 24, labelY);
         ctx.restore();
       }
-      if (petals.length > 0) Particles.drawPetals(ctx, petals);
+      if (scoreFlyTexts.length > 0) Particles.drawScoreFlies(ctx, scoreFlyTexts);
+    if (petals.length > 0) Particles.drawPetals(ctx, petals);
       UI.drawScorePanel(ctx, score, t);
-      // 倍率标签
-      [birdA, birdB].forEach(function(bd) {
-        if (bd.alive && bd.chargeMultiplier > 1) {
-          ctx.save();
-          var pulse = 1 + 0.1 * Math.sin(Date.now() * 0.008);
-          var burst = 0;
-          if (bd.multiBurstTime) {
-            var elapsed = (Date.now() - bd.multiBurstTime) / 1000;
-            if (elapsed < 0.5) burst = (1 - elapsed / 0.5) * 0.5 * Math.sin(elapsed * Math.PI * 4);
-          }
-          var scale = pulse + burst;
-          ctx.translate(bd.x, bd.y - C.BIRD_SIZE * 0.8);
-          ctx.scale(scale, scale);
-          ctx.globalAlpha = 0.85;
-          ctx.fillStyle = burst > 0.1 ? '#FFD700' : '#FF6600';
-          ctx.font = 'bold 14px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'alphabetic';
-          ctx.fillText('x' + bd.chargeMultiplier, 0, 0);
-          ctx.restore();
-        }
-      });
+      // 得分闪烁
+      if (scoreFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = scoreFlash / 0.35 * 0.5;
+        ctx.fillStyle = '#FFD700';
+        C.roundRect(ctx, (C.W - 90) / 2, C.GAME_TOP + 2, 90, 32, 16);
+        ctx.fill();
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 20 * (scoreFlash / 0.35);
+        ctx.strokeStyle = '#FFD700';
+        ctx.lineWidth = 2;
+        C.roundRect(ctx, (C.W - 90) / 2, C.GAME_TOP + 2, 90, 32, 16);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        ctx.restore();
+      }
       // 各自 combo 文字（在鸟附近）
       [birdA, birdB].forEach(function(bd) {
         if (bd.alive && bd.combo >= 1) {
@@ -1072,6 +1188,15 @@ function draw(ctx) {
           ctx.fillStyle = comboColor;
           ctx.fillText(comboText, bd.x, cyOff);
           ctx.shadowBlur = 0;
+          // xN 连击数
+          ctx.globalAlpha = 0.55;
+          ctx.font = 'bold ' + Math.floor(cSize * 0.65) + 'px sans-serif';
+          ctx.fillStyle = comboColor;
+          ctx.strokeStyle = t.accentDark;
+          ctx.lineWidth = Math.floor(cSize * 0.1);
+          ctx.lineJoin = 'round';
+          ctx.strokeText('x' + bd.combo, bd.x, cyOff + cSize * 0.6);
+          ctx.fillText('x' + bd.combo, bd.x, cyOff + cSize * 0.6);
           ctx.restore();
         }
       });
@@ -1096,50 +1221,115 @@ function draw(ctx) {
       ctx.restore();
     }
     Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, );
-    // 倍率标在鸟上方
-    if (chargeMultiplier > 1) {
-      ctx.save();
-      // 持续呼吸脉动（和能量涟漪同风格）
-      var pulse = 1 + 0.1 * Math.sin(Date.now() * 0.008);
-      // 升级爆发（0.5秒内叠加额外膨胀）
-      var burst = 0;
-      if (multiBurstTime) {
-        var elapsed = (Date.now() - multiBurstTime) / 1000;
-        if (elapsed < 0.5) {
-          burst = (1 - elapsed / 0.5) * 0.5 * Math.sin(elapsed * Math.PI * 4);
-        }
-      }
-      var scale = pulse + burst;
-      ctx.translate(C.BIRD_X, birdY - C.BIRD_SIZE * 0.8);
-      ctx.scale(scale, scale);
-      // 爆发时变金色
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = burst > 0.1 ? '#FFD700' : '#FF6600';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillText('x' + chargeMultiplier, 0, 0);
-      ctx.restore();
-    }
+    if (scoreFlyTexts.length > 0) Particles.drawScoreFlies(ctx, scoreFlyTexts);
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawScorePanel(ctx, score, t);
-    // 无敌倒计时（显示在鸟下方，不分散注意力）
-    if (invincibleTimer > 0) {
-      var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
+    // 得分闪烁
+    if (scoreFlash > 0) {
       ctx.save();
-      ctx.globalAlpha = 0.75 + 0.25 * pulse;
+      ctx.globalAlpha = scoreFlash / 0.35 * 0.5;
       ctx.fillStyle = '#FFD700';
-      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      C.roundRect(ctx, (C.W - 90) / 2, C.GAME_TOP + 2, 90, 32, 16);
+      ctx.fill();
+      ctx.shadowColor = '#FFD700';
+      ctx.shadowBlur = 20 * (scoreFlash / 0.35);
+      ctx.strokeStyle = '#FFD700';
       ctx.lineWidth = 2;
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      var textY = birdY + C.BIRD_SIZE * 0.9 + 8;
-      ctx.strokeText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, textY);
-      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, textY);
+      C.roundRect(ctx, (C.W - 90) / 2, C.GAME_TOP + 2, 90, 32, 16);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
       ctx.restore();
     }
-    // 连击大字（消消乐风格）
+    // 无敌倒计时
+    var sLabY = birdY + C.BIRD_SIZE * 0.9 + 8;
+    if (invincibleTimer > 0) {
+      var pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.02);
+      ctx.save(); ctx.globalAlpha = 0.75 + 0.25 * pulse;
+      ctx.fillStyle = '#FFD700'; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
+      ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.strokeText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, sLabY);
+      ctx.fillText('无敌 ' + invincibleTimer.toFixed(1) + 's', C.BIRD_X, sLabY);
+      ctx.restore();
+      sLabY += 16;
+    }
+    // 护盾
+    if (activeItem && activeItem.type === 'shield') {
+      var shA = 0.5 + 0.2 * Math.sin(Date.now() * 0.01);
+      var shR2 = C.BIRD_SIZE * 1.05;
+      ctx.save(); ctx.globalAlpha = shA;
+      ctx.strokeStyle = '#5BB5F5'; ctx.lineWidth = 2.5;
+      ctx.shadowColor = '#5BB5F5'; ctx.shadowBlur = 10;
+      ctx.beginPath();
+      for (var hi2 = 0; hi2 < 6; hi2++) {
+        var ha2 = (hi2 * Math.PI) / 3 + Date.now() * 0.002;
+        var hx2 = C.BIRD_X + Math.cos(ha2) * shR2, hy2 = birdY + Math.sin(ha2) * shR2;
+        if (hi2 === 0) ctx.moveTo(hx2, hy2); else ctx.lineTo(hx2, hy2);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(150,210,255,0.6)'; ctx.lineWidth = 1; ctx.shadowBlur = 0;
+      ctx.beginPath();
+      for (hi2 = 0; hi2 < 6; hi2++) {
+        ha2 = (hi2 * Math.PI) / 3 - Date.now() * 0.003;
+        hx2 = C.BIRD_X + Math.cos(ha2) * shR2 * 0.85; hy2 = birdY + Math.sin(ha2) * shR2 * 0.85;
+        if (hi2 === 0) ctx.moveTo(hx2, hy2); else ctx.lineTo(hx2, hy2);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+      ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#5BB5F5'; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
+      ctx.strokeText('护盾 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+      ctx.fillText('护盾 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+      sLabY += 16;
+    }
+    // 磁铁
+    if (activeItem && activeItem.type === 'magnet') {
+      var mgA = 0.4 + 0.2 * Math.sin(Date.now() * 0.015);
+      var mgP = (Date.now() * 0.003) % 1;
+      ctx.save(); ctx.globalAlpha = mgA;
+      for (var mi2 = 0; mi2 < 3; mi2++) {
+        var mp2 = (mgP + mi2 * 0.33) % 1;
+        var mr2 = C.BIRD_SIZE * (0.8 + mp2 * 1.2);
+        ctx.strokeStyle = '#B06EE0'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(C.BIRD_X, birdY, mr2, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#B06EE0'; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
+      ctx.strokeText('磁铁 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+      ctx.fillText('磁铁 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+      sLabY += 16;
+    }
+    // 双倍 — 浮动 ×2 粒子（得分翻倍，非保护环）
+    if (activeItem && activeItem.type === 'double') {
+      ctx.save();
+      var glow = ctx.createRadialGradient(C.BIRD_X, birdY, C.BIRD_SIZE * 0.2, C.BIRD_X, birdY, C.BIRD_SIZE * 0.9);
+      glow.addColorStop(0, 'rgba(255,200,0,0.18)');
+      glow.addColorStop(1, 'rgba(255,200,0,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(C.BIRD_X, birdY, C.BIRD_SIZE * 0.9, 0, Math.PI * 2); ctx.fill();
+      for (var di2 = 0; di2 < 3; di2++) {
+        var dp2 = ((Date.now() * 0.0012 + di2 * 0.33) % 1);
+        var da2 = di2 * Math.PI * 2 / 3 + Date.now() * 0.003;
+        var dr2 = C.BIRD_SIZE * (0.65 + dp2 * 0.5);
+        var dyOff2 = Math.sin(Date.now() * 0.006 + di2) * 5;
+        var dx2 = C.BIRD_X + Math.cos(da2) * dr2;
+        var dy2 = birdY + Math.sin(da2) * dr2 + dyOff2 - dp2 * 10;
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#FFD700';
+        ctx.shadowColor = '#FFD700';
+        ctx.shadowBlur = 5;
+        ctx.globalAlpha = 0.35 + dp2 * 0.5;
+        ctx.fillText('×2', dx2, dy2);
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      ctx.fillStyle = '#FFD700'; ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 2;
+      ctx.strokeText('双倍 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+      ctx.fillText('双倍 ' + Math.ceil(activeItem.timer) + 's', C.BIRD_X, sLabY);
+    }
+    // 连击大字（跟随小鸟）
     if (combo >= 1) {
       var comboText, comboColor, comboSize;
       if (combo >= 7)      { comboText = 'LEGENDARY'; comboColor = '#FF44FF'; comboSize = 34; }
@@ -1150,27 +1340,30 @@ function draw(ctx) {
       ctx.save();
       var cPop = 1 + 0.08 * Math.sin(Date.now() * 0.018);
       var cSize = Math.floor(comboSize * cPop);
-      var cx = C.W / 2, cy = C.GAME_TOP + 135;
+      var cyOff = birdY - C.BIRD_SIZE * 1.5;
       ctx.font = 'bold ' + cSize + 'px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'alphabetic';
-      // 主题色轮廓描边（亮色背景下勾勒文字边缘）
       ctx.strokeStyle = t.accentDark;
       ctx.lineWidth = cSize * 0.15;
       ctx.globalAlpha = 0.55;
       ctx.lineJoin = 'round';
-      ctx.strokeText(comboText, cx, cy);
-      // 柔和光晕 + 填充
+      ctx.strokeText(comboText, C.BIRD_X, cyOff);
       ctx.shadowColor = comboColor;
       ctx.shadowBlur = 12;
       ctx.globalAlpha = 0.85;
       ctx.fillStyle = comboColor;
-      ctx.fillText(comboText, cx, cy);
+      ctx.fillText(comboText, C.BIRD_X, cyOff);
       ctx.shadowBlur = 0;
-      // 小字 xN
-      ctx.globalAlpha = 0.6;
-      ctx.font = 'bold 16px sans-serif';
-      ctx.fillText('x' + combo, cx, C.GAME_TOP + 155);
+      // 小字 xN（带阴影）
+      ctx.globalAlpha = 0.55;
+      ctx.font = 'bold ' + Math.floor(cSize * 0.6) + 'px sans-serif';
+      ctx.fillStyle = comboColor;
+      ctx.strokeStyle = t.accentDark;
+      ctx.lineWidth = Math.floor(cSize * 0.1);
+      ctx.lineJoin = 'round';
+      ctx.strokeText('x' + combo, C.BIRD_X, cyOff + cSize * 0.6);
+      ctx.fillText('x' + combo, C.BIRD_X, cyOff + cSize * 0.6);
       ctx.restore();
     }
     } // end single-player block
@@ -1185,6 +1378,7 @@ function draw(ctx) {
     } else {
       Bird.drawBird(ctx, birdY, birdVY, state, shakeTimer, t, currentAccessory, chargeRatio, );
     }
+    if (scoreFlyTexts.length > 0) Particles.drawScoreFlies(ctx, scoreFlyTexts);
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
     UI.drawGameOverPanel(ctx, t, {
       score: score,
@@ -1461,21 +1655,7 @@ function onTouch(e) {
     return;
   }
 
-  // AUTO 按钮
-  if (state === C.STATE.PLAYING && !(e.touches && e.touches.length > 0) && Item.hitTestAuto(tx, ty)) {
-    autoItem = !autoItem;
-    return;
-  }
 
-  // 道具背包点击
-  if (state === C.STATE.PLAYING && backpack.length > 0 && !(e.touches && e.touches.length > 0)) {
-    var slotIdx = Item.hitTestBackpack(tx, ty, backpack);
-    if (slotIdx >= 0) {
-      var usedType = backpack.splice(slotIdx, 1)[0];
-      if (usedType === 'invincible') { invincibleTimer += C.BALANCE.itemDurations.invincible; }
-	      else { activeItem = { type: usedType, timer: usedType === "double" ? C.BALANCE.itemDurations.double : usedType === "magnet" ? C.BALANCE.itemDurations.magnet : C.BALANCE.itemDurations.shield }; }
-    }
-  }
 
   // PLAYING：长按蓄力 / 点击飞行
   if (state === C.STATE.PLAYING) {
@@ -1491,7 +1671,7 @@ function onTouch(e) {
           var bd = key === 'A' ? birdA : birdB;
           // 任何触控都唤醒对方（即使不蓄力）
           var otherBd = key === 'A' ? birdB : birdA;
-          if (otherBd && otherBd.alive && otherBd.stunned) { otherBd.stunned = false; otherBd.invincibleTimer = 0.5; otherBd.wakeFlash = 0.4; }
+          if (otherBd && otherBd.alive && otherBd.stunned) { otherBd.stunned = false; otherBd.wakeFlash = 0.4; otherBd.invincibleTimer = 0.2; }
           // 开始蓄力
           if (!_activeTouchMap[tp.identifier] && bd.alive && !bd.stunned && !bd.isCharging) {
             bd.isCharging = true; bd.chargeStartTime = Date.now(); bd.chargeWasFull = false;
@@ -1516,7 +1696,7 @@ function onTouch(e) {
               rd.isCharging = false; rd.chargeRatio = 0;
               // 跳跃唤醒对方
               var otherBd2 = rk === 'A' ? birdB : birdA;
-              if (otherBd2 && otherBd2.alive && otherBd2.stunned) otherBd2.stunned = false;
+              if (otherBd2 && otherBd2.alive && otherBd2.stunned) { otherBd2.stunned = false; otherBd2.invincibleTimer = 0.2; }
             }
           }
         }
@@ -1539,7 +1719,7 @@ function onTouch(e) {
             if (ek === 'A') Sound.stopCharge(eRatio); else Sound.stopCharge2(eRatio);
             ed.isCharging = false; ed.chargeRatio = 0;
             var otherBd3 = ek === 'A' ? birdB : birdA;
-            if (otherBd3 && otherBd3.alive && otherBd3.stunned) otherBd3.stunned = false;
+            if (otherBd3 && otherBd3.alive && otherBd3.stunned) { otherBd3.stunned = false; otherBd3.invincibleTimer = 0.2; }
           }
         }
         _activeTouchMap = {};
@@ -1575,6 +1755,7 @@ function onTouch(e) {
 function destroy() {
   destroyUserInfoButton();
   petals = [];
+  scoreFlyTexts = []; scoreFlash = 0;
   Memorial.destroyMemorialCanvas();
   Sound.destroy();
 }

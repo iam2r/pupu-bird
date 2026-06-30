@@ -113,14 +113,40 @@ function drawItem(ctx, it) {
   ctx.restore();
 }
 
-function drawBackpack(ctx, bp, t, autoMode) {
+function drawBackpack(ctx, bp, t, autoMode, side) {
   var slotW = 36, slotH = 40, gap = 6;
-  var slotCount = C.BALANCE.backpackSlots;
   var autoW = 38, autoGap = 5;
+  var y = C.GROUND_Y + 6;
+
+  // 计算水平基准位置
+  var centerX;
+  if (side === 'left') {
+    centerX = C.W * 0.25;
+  } else if (side === 'right') {
+    centerX = C.W * 0.75;
+  } else {
+    centerX = C.W / 2;
+  }
+
+  // AUTO 开启且背包为空 → 只显示 AUTO 按钮（仅单人模式，双人保留槽位）
+  if (autoMode && bp.length === 0 && !side) {
+    var autoCX = centerX - autoW / 2;
+    ctx.fillStyle = t.accent;
+    ctx.strokeStyle = t.accentDark; ctx.lineWidth = 1.5;
+    C.roundRect(ctx, autoCX, y - slotH, autoW, slotH, 6); ctx.fill();
+    C.roundRect(ctx, autoCX, y - slotH, autoW, slotH, 6); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('AUTO', autoCX + autoW / 2, y - slotH / 2);
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    return;
+  }
+
+  // 有背包道具（或 AUTO 关闭）→ 槽位 + AUTO 按钮
+  var slotCount = C.BALANCE.backpackSlots;
   var totalW = slotW * slotCount + gap * (slotCount - 1) + autoGap + autoW;
-  var startX = (C.W - totalW) / 2;
-  var y = C.GROUND_Y - 4;
-  // 背包槽
+  var startX = centerX - totalW / 2;
+
   for (var i = 0; i < slotCount; i++) {
     var sx = startX + i * (slotW + gap);
     ctx.fillStyle = i < bp.length ? t.scoreBg : 'rgba(255,255,255,0.25)';
@@ -133,7 +159,7 @@ function drawBackpack(ctx, bp, t, autoMode) {
       ctx.fillText(ITEMS[bp[i]].name, sx + slotW / 2, y - 4);
     }
   }
-  // AUTO 按钮
+
   var autoX = startX + slotCount * (slotW + gap) - gap + autoGap;
   ctx.fillStyle = autoMode ? t.accent : 'rgba(255,255,255,0.25)';
   ctx.strokeStyle = t.accent; ctx.lineWidth = 1;
@@ -145,13 +171,14 @@ function drawBackpack(ctx, bp, t, autoMode) {
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
 }
 
-function hitTestBackpack(tx, ty, bp) {
+function hitTestBackpack(tx, ty, bp, side) {
   if (!bp || bp.length === 0) return -1;
   var slotW = 36, slotH = 40, gap = 6;
   var slotCount = C.BALANCE.backpackSlots;
   var totalW = slotW * slotCount + gap * (slotCount - 1);
-  var startX = (C.W - totalW) / 2;
-  var y = C.GROUND_Y - 8;
+  var centerX = side === 'left' ? C.W * 0.25 : side === 'right' ? C.W * 0.75 : C.W / 2;
+  var startX = centerX - totalW / 2;
+  var y = C.GROUND_Y + 6;
   for (var i = 0; i < slotCount; i++) {
     var sx = startX + i * (slotW + gap);
     if (tx >= sx && tx <= sx + slotW && ty >= y - slotH && ty <= y) return i;
@@ -159,13 +186,29 @@ function hitTestBackpack(tx, ty, bp) {
   return -1;
 }
 
-function hitTestAuto(tx, ty) {
-  var slotW = 36, slotH = 40, gap = 6, autoW = 38, autoGap = 5;
-  var totalW = slotW * C.BALANCE.backpackSlots + gap * (C.BALANCE.backpackSlots - 1) + autoGap + autoW;
-  var startX = (C.W - totalW) / 2;
-  var autoX = startX + C.BALANCE.backpackSlots * (slotW + gap) - gap + autoGap;
-  var y = C.GROUND_Y - 4;
-  return (tx >= autoX && tx <= autoX + autoW && ty >= y - slotH && ty <= y);
+function hitTestAuto(tx, ty, side) {
+  var slotW = 36, slotH = 40, autoW = 38, gap = 6, autoGap = 5;
+  var y = C.GROUND_Y + 6;
+
+  function _btnHit(ax) {
+    return tx >= ax && tx <= ax + autoW && ty >= y - slotH + 4 && ty <= y - 4;
+  }
+
+  function _check(cx, checkCentered) {
+    if (checkCentered) {
+      if (_btnHit(cx - autoW / 2)) return true;
+    }
+    var totalW = slotW * C.BALANCE.backpackSlots + gap * (C.BALANCE.backpackSlots - 1) + autoGap + autoW;
+    var startX = cx - totalW / 2;
+    var autoX = startX + C.BALANCE.backpackSlots * (slotW + gap) - gap + autoGap;
+    return _btnHit(autoX);
+  }
+
+  // 根据传入的 side 只检测对应位置
+  if (side === 'left')  return _check(C.W * 0.25, false);
+  if (side === 'right') return _check(C.W * 0.75, false);
+  // 单人: 检测居中
+  return _check(C.W / 2, true);
 }
 
 function checkPickup(it, bx, by, br) {

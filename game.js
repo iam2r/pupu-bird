@@ -32,6 +32,7 @@ if (wx.getPrivacySetting) {
   });
 }
 
+// 触控回调
 wx.onTouchStart(function(e) { game.onTouch(e); });
 wx.onTouchMove(function(e) { game.onTouch(e); });
 wx.onTouchEnd(function(e) { game.onTouch(e); });

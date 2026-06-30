@@ -84,7 +84,7 @@ function drawGround(ctx, t, frozenOffset) {
 
   ctx.fillStyle = 'rgba(200,185,160,0.3)';
   var offset = (frozenOffset !== undefined) ? frozenOffset : (Date.now() * 0.06) % 40;
-  for (var x = -40 + offset; x < C.W + 40; x += 40) {
+  for (var x = -40 - offset; x < C.W + 40; x += 40) {
     ctx.fillRect(x, C.GROUND_Y, 22, 3);
   }
 }

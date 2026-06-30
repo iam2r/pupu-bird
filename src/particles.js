@@ -84,9 +84,74 @@ function drawPetals(ctx, petals) {
   }
 }
 
+// ---- 得分飞行文字 ----
+function spawnScoreFly(arr, x, y, amount) {
+  arr.push({
+    x: x + (Math.random() - 0.5) * 30,
+    y: y + (Math.random() - 0.5) * 16 - 10,
+    amount: amount,
+    life: 1,
+    scale: 1.4 + Math.random() * 0.6,
+    driftX: (Math.random() - 0.5) * 40
+  });
+}
+
+function updateScoreFlies(arr, dt, targetX, targetY) {
+  var s = Math.min(dt, 0.1);
+  var arrived = 0;
+  for (var i = arr.length - 1; i >= 0; i--) {
+    var f = arr[i];
+    f.life -= s * 1.1;
+    var dx = targetX - f.x;
+    var dy = targetY - f.y;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > 5) {
+      var speed = 400 + (1 - f.life) * 600;
+      f.x += (dx / dist) * speed * s + f.driftX * s * (1 - f.life);
+      f.y += (dy / dist) * speed * s;
+      f.driftX *= (1 - 3 * s);
+    }
+    f.scale = 0.6 + f.life * 1.4;
+    if (f.life <= 0 || dist < 8) {
+      if (dist < 8) arrived++;
+      arr.splice(i, 1);
+    }
+  }
+  return arrived;
+}
+
+function drawScoreFlies(ctx, arr) {
+  for (var i = 0; i < arr.length; i++) {
+    var f = arr[i];
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, f.life * 1.2);
+    ctx.translate(f.x, f.y);
+    ctx.scale(f.scale, f.scale);
+    // 光晕
+    ctx.shadowColor = '#FFD700';
+    ctx.shadowBlur = 10;
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // 描边
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 3;
+    ctx.lineJoin = 'round';
+    ctx.strokeText('+' + f.amount, 0, 0);
+    // 填充（渐变金→白）
+    ctx.fillStyle = f.life > 0.5 ? '#FFD700' : '#FFFFFF';
+    ctx.fillText('+' + f.amount, 0, 0);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+}
+
 module.exports = {
   spawnPetals: spawnPetals,
   spawnDeathPetals: spawnDeathPetals,
   updatePetals: updatePetals,
-  drawPetals: drawPetals
+  drawPetals: drawPetals,
+  spawnScoreFly: spawnScoreFly,
+  updateScoreFlies: updateScoreFlies,
+  drawScoreFlies: drawScoreFlies
 };
