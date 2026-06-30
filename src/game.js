@@ -69,6 +69,7 @@ var activeItem = null;       // 当前激活道具 {type, timer}
 function _createBirdState(bx) {
   return {
     x: bx, y: C.GAME_TOP + C.GAME_H / 2, vy: 0, alive: true,
+    stunned: false, stunTimer: 0, wakeFlash: 0,
     isCharging: false, chargeStartTime: 0, chargeRatio: 0, chargeWasFull: false,
     combo: 0, chargeMultiplier: 1, multiBurstTime: 0, invincibleTimer: 0
   };
@@ -83,22 +84,41 @@ function _applyRopeConstraint(s) {
   var overlap = dist - C.ROPE_MAX_LENGTH;
   var ny = dy / dist;
   var force = overlap * C.ROPE_STIFFNESS * 60 * s;
-  if (birdA.alive && !birdB.alive)      { birdA.vy += ny * force * 0.75; birdB.vy -= ny * force * 0.25; }
-  else if (!birdA.alive && birdB.alive) { birdA.vy += ny * force * 0.25; birdB.vy -= ny * force * 0.75; }
-  else if (birdA.alive && birdB.alive)  { birdA.vy += ny * force * 0.5;  birdB.vy -= ny * force * 0.5; }
+  // 眩晕鸟更轻（0.6x质量），搭档拉它更容易
+  var massA = birdA.stunned ? 0.3 : 1;
+  var massB = birdB.stunned ? 0.6 : 1;
+  if (!birdA.alive && birdB.alive)      { birdA.vy += ny * force * 0.25; birdB.vy -= ny * force * 0.75 * massA; }
+  else if (birdA.alive && !birdB.alive) { birdA.vy += ny * force * 0.75 * massB; birdB.vy -= ny * force * 0.25; }
+  else if (birdA.alive && birdB.alive)  { birdA.vy += ny * force * 0.5 * massB; birdB.vy -= ny * force * 0.5 * massA; }
 }
 
-function _dieBird(bird, other) {
+function _hitBird(bird, other) {
   if (!isTwoPlayer || !bird.alive) return;
-  bird.alive = false;
+  // 已眩晕再撞 → 死
+  if (bird.stunned) {
+    bird.alive = false;
+    Sound.playDie();
+    var t2 = C.getT(currentTheme);
+    Particles.spawnDeathPetals(petals, bird.y, t2);
+    if (!birdA.alive && !birdB.alive) _finalizeDualDeath();
+    return;
+  }
+  // 首次碰撞 → 眩晕1秒
+  bird.stunned = true;
+  bird.stunTimer = 1.0;
   if (bird.isCharging) {
     if (bird === birdA) Sound.stopCharge(0); else Sound.stopCharge2(0);
     bird.isCharging = false; bird.chargeRatio = 0;
   }
-  Sound.playDie();
-  var t = C.getT(currentTheme);
-  Particles.spawnDeathPetals(petals, bird.y, t);
-  if (!birdA.alive && !birdB.alive) _finalizeDualDeath();
+  // 两只都晕 → 全死
+  if (birdA.stunned && birdB.stunned) {
+    birdA.alive = false; birdB.alive = false;
+    Sound.playDie();
+    var t3 = C.getT(currentTheme);
+    Particles.spawnDeathPetals(petals, birdA.y, t3);
+    Particles.spawnDeathPetals(petals, birdB.y, t3);
+    _finalizeDualDeath();
+  }
 }
 
 function _finalizeDualDeath() {
@@ -275,7 +295,7 @@ function flap(velocity) {
 
 function die() {
   console.log('[die] isTwoPlayer:', isTwoPlayer, 'score:', score, 'pipes:', pipesPassed);
-  if (isTwoPlayer) return; // 双人模式由 _dieBird / _finalizeDualDeath 处理
+  if (isTwoPlayer) return; // 双人模式由 _hitBird / _finalizeDualDeath 处理
   state = C.STATE.DEAD;
   shakeTimer = 0;
   deathAnimPhase = 0;
@@ -586,21 +606,23 @@ function update(dt) {
   // ---- 双人模式：独立物理 + 绳索约束 + 碰撞 ----
   if (isTwoPlayer) {
     if (_splitLineTimer > 0) _splitLineTimer = Math.max(0, _splitLineTimer - s);
+    if (birdA && birdA.wakeFlash > 0) birdA.wakeFlash = Math.max(0, birdA.wakeFlash - s);
+    if (birdB && birdB.wakeFlash > 0) birdB.wakeFlash = Math.max(0, birdB.wakeFlash - s);
     var t2 = C.getT(currentTheme);
-    // 更新活鸟物理 + 蓄力
+    // 更新活鸟物理 + 蓄力（眩晕鸟不能蓄力，蓄力释放后恢复）
     if (birdA.alive) {
-      birdA.vy = Math.min(C.TERMINAL_V, birdA.vy + C.GRAVITY_PX * s);
+      birdA.vy = Math.min(C.TERMINAL_V, birdA.vy + C.GRAVITY_PX * s * (birdA.stunned ? 0.7 : 1));
       birdA.y += birdA.vy * s;
-      if (birdA.isCharging) {
+      if (birdA.isCharging && !birdA.stunned) {
         birdA.chargeRatio = Math.min((Date.now() - birdA.chargeStartTime) / 1000 / C.CHARGE_MAX_TIME, 1.0);
         if (birdA.chargeRatio >= 0.95 && !birdA.chargeWasFull) { birdA.chargeWasFull = true; Sound.playChargeFull(); }
         Sound.updateCharge(birdA.chargeRatio);
       }
     }
     if (birdB.alive) {
-      birdB.vy = Math.min(C.TERMINAL_V, birdB.vy + C.GRAVITY_PX * s);
+      birdB.vy = Math.min(C.TERMINAL_V, birdB.vy + C.GRAVITY_PX * s * (birdB.stunned ? 1.1 : 1));
       birdB.y += birdB.vy * s;
-      if (birdB.isCharging) {
+      if (birdB.isCharging && !birdB.stunned) {
         birdB.chargeRatio = Math.min((Date.now() - birdB.chargeStartTime) / 1000 / C.CHARGE_MAX_TIME, 1.0);
         if (birdB.chargeRatio >= 0.95 && !birdB.chargeWasFull) { birdB.chargeWasFull = true; Sound.playChargeFull(); }
         Sound.updateCharge2(birdB.chargeRatio);
@@ -612,7 +634,7 @@ function update(dt) {
     // 绳索约束 + 蓄力拉升
     _applyRopeConstraint(s);
     // 蓄力差拉升：高蓄力方拉起低蓄力方
-    if (birdA.alive && birdB.alive) {
+    if (birdA.alive && birdB.alive && !birdA.stunned && !birdB.stunned) {
       var liftDiff = (birdA.chargeRatio - birdB.chargeRatio);
       birdA.vy -= liftDiff * 120 * s;
       birdB.vy += liftDiff * 120 * s;
@@ -693,12 +715,12 @@ function update(dt) {
 
     // 碰撞检测（各自无敌）
     if (birdA.alive && birdA.invincibleTimer <= 0) {
-      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) _dieBird(birdA, birdB);
-      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { _dieBird(birdA, birdB); break; } }
+      if (birdA.y < C.GAME_TOP || birdA.y > C.GAME_BOTTOM) _hitBird(birdA, birdB);
+      else for (var ci = 0; ci < pipes.length; ci++) { if (Pipe.checkCollision(pipes[ci], birdA.x, birdA.y, birdR)) { _hitBird(birdA, birdB); break; } }
     }
     if (birdB.alive && birdB.invincibleTimer <= 0 && state === C.STATE.PLAYING) {
-      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) _dieBird(birdB, birdA);
-      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { _dieBird(birdB, birdA); break; } }
+      if (birdB.y < C.GAME_TOP || birdB.y > C.GAME_BOTTOM) _hitBird(birdB, birdA);
+      else for (var cj = 0; cj < pipes.length; cj++) { if (Pipe.checkCollision(pipes[cj], birdB.x, birdB.y, birdR)) { _hitBird(birdB, birdA); break; } }
     }
     return;
   }
@@ -933,6 +955,42 @@ function draw(ctx) {
       // 画鸟 + 绳索
       Bird.drawBird(ctx, birdA.y, birdA.vy, state, 0, t, currentAccessory, birdA.chargeRatio,birdA.x, !birdA.alive);
       Bird.drawBird(ctx, birdB.y, birdB.vy, state, 0, t, currentAccessory, birdB.chargeRatio,birdB.x, !birdB.alive);
+      // 眩晕视觉+醒闪光
+      [birdA, birdB].forEach(function(bd) {
+        // 醒闪光
+        if (bd.alive && bd.wakeFlash > 0) {
+          ctx.fillStyle = 'rgba(255,255,255,' + (bd.wakeFlash * 0.6) + ')';
+          ctx.beginPath();
+          ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // 眩晕
+        if (bd.alive && bd.stunned) {
+          var stAlpha = 0.5 + 0.3 * Math.sin(Date.now() * 0.02);
+          // 身体黄光
+          ctx.fillStyle = 'rgba(255,215,0,' + (stAlpha * 0.25) + ')';
+          ctx.beginPath();
+          ctx.arc(bd.x, bd.y, C.BIRD_SIZE * 0.8, 0, Math.PI * 2);
+          ctx.fill();
+          // 大星旋转
+          for (var si = 0; si < 3; si++) {
+            var sa = (si * Math.PI * 2) / 3 + Date.now() * 0.006;
+            var sr = C.BIRD_SIZE * 0.6;
+            ctx.fillStyle = '#FFD700';
+            ctx.globalAlpha = stAlpha;
+            ctx.beginPath();
+            ctx.arc(bd.x + Math.cos(sa) * sr, bd.y - C.BIRD_SIZE * 0.9 + Math.sin(sa) * sr, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          // 眩晕图标
+          ctx.font = 'bold 16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.globalAlpha = stAlpha;
+          ctx.fillStyle = '#FFD700';
+          ctx.fillText('💫', bd.x, bd.y - C.BIRD_SIZE * 1.2);
+          ctx.globalAlpha = 1;
+        }
+      });
       UI.drawRope(ctx, birdA, birdB, t);
       // 开场分屏分隔线动画
       if (_splitLineTimer > 0) {
@@ -960,6 +1018,8 @@ function draw(ctx) {
         ctx.fillText('B', C.TOUCH_SPLIT_X + 24, labelY);
         ctx.restore();
       }
+      if (petals.length > 0) Particles.drawPetals(ctx, petals);
+      UI.drawScorePanel(ctx, score, t);
       // 倍率标签
       [birdA, birdB].forEach(function(bd) {
         if (bd.alive && bd.chargeMultiplier > 1) {
@@ -982,8 +1042,6 @@ function draw(ctx) {
           ctx.restore();
         }
       });
-      if (petals.length > 0) Particles.drawPetals(ctx, petals);
-      UI.drawScorePanel(ctx, score, t);
       // 各自 combo 文字（在鸟附近）
       [birdA, birdB].forEach(function(bd) {
         if (bd.alive && bd.combo >= 1) {
@@ -1418,7 +1476,7 @@ function onTouch(e) {
 
   // PLAYING：长按蓄力 / 点击飞行
   if (state === C.STATE.PLAYING) {
-    // ---- 双人模式多触控 ----
+    // ---- 双人模式多触控（长按蓄力+释放跳跃） ----
     if (isTwoPlayer) {
       if (e.touches && e.touches.length > 0) {
         if (gameJustStarted) gameJustStarted = false;
@@ -1428,12 +1486,15 @@ function onTouch(e) {
           var key = tp.clientX < C.TOUCH_SPLIT_X ? 'A' : 'B';
           newMap[tp.identifier] = key;
           var bd = key === 'A' ? birdA : birdB;
-          if (!_activeTouchMap[tp.identifier] && bd.alive && !bd.isCharging) {
+          if (!_activeTouchMap[tp.identifier] && bd.alive && !bd.stunned && !bd.isCharging) {
             bd.isCharging = true; bd.chargeStartTime = Date.now(); bd.chargeWasFull = false;
             if (key === 'A') Sound.startCharge(); else Sound.startCharge2();
+            // 活鸟蓄力唤醒眩晕对方
+            var otherBd = key === 'A' ? birdB : birdA;
+            if (otherBd && otherBd.alive && otherBd.stunned) otherBd.stunned = false; otherBd.invincibleTimer = 0.15; otherBd.wakeFlash = 0.4;
           }
         }
-        // 检测松开的触控
+        // 松开的触控→释放跳跃
         for (var id in _activeTouchMap) {
           if (!newMap[id]) {
             var rk = _activeTouchMap[id];
@@ -1449,13 +1510,15 @@ function onTouch(e) {
               rd.vy = rVel;
               if (rk === 'A') Sound.stopCharge(rRatio); else Sound.stopCharge2(rRatio);
               rd.isCharging = false; rd.chargeRatio = 0;
+              // 跳跃唤醒对方
+              var otherBd2 = rk === 'A' ? birdB : birdA;
+              if (otherBd2 && otherBd2.alive && otherBd2.stunned) otherBd2.stunned = false;
             }
           }
         }
         _activeTouchMap = newMap;
         return;
       } else {
-        // touchEnd：释放所有活跃触控
         if (gameJustStarted) { gameJustStarted = false; return; }
         for (var id2 in _activeTouchMap) {
           var ek = _activeTouchMap[id2];
@@ -1471,6 +1534,8 @@ function onTouch(e) {
             ed.vy = eVel;
             if (ek === 'A') Sound.stopCharge(eRatio); else Sound.stopCharge2(eRatio);
             ed.isCharging = false; ed.chargeRatio = 0;
+            var otherBd3 = ek === 'A' ? birdB : birdA;
+            if (otherBd3 && otherBd3.alive && otherBd3.stunned) otherBd3.stunned = false;
           }
         }
         _activeTouchMap = {};

@@ -310,7 +310,7 @@ function drawStartScreen(ctx, t, stateData) {
   // 玩法说明（跟随模式切换）
   var hintY = tabCY + 33;
   if (isTwoPlayer) {
-    C.drawText(ctx, '左右分屏 · 各控一鸟', C.W / 2, hintY, 10, t.textSec, false);
+    C.drawText(ctx, '点击左右 · 双鸟齐飞', C.W / 2, hintY, 10, t.textSec, false);
     C.drawText(ctx, '绳索相连 · 携手穿越', C.W / 2, hintY + 14, 10, t.textSec, false);
   } else {
     C.drawText(ctx, '轻按跳跃 · 按住蓄力', C.W / 2, hintY, 10, t.textSec, false);

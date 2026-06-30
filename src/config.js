@@ -3,7 +3,7 @@
 
 // ==================== 三套主题皮肤 ====================
 // 调试开关：发版时改 false 隐藏 调试 按钮
-var DEBUG = true;
+var DEBUG = false;
 
 var THEMES = {
   sakura: {
