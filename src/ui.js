@@ -1254,7 +1254,7 @@ function initUploadPanel(score, pipes, mode) {
 }
 
 function drawUploadPanel(ctx) {
-  var pw = 220, ph = 220, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 248, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   ctx.fillStyle = 'rgba(0,0,0,0.4)';
   ctx.fillRect(0, 0, C.W, C.H);
   ctx.fillStyle = '#fff';
@@ -1320,13 +1320,20 @@ function drawUploadPanel(ctx) {
   ctx.fillStyle = '#fff'; ctx.font = 'bold 14px sans-serif';
   ctx.fillText('上报', px + pw / 2, cy);
 
+  // Clear button
+  cy += 34;
+  ctx.fillStyle = '#E53935';
+  C.roundRect(ctx, px + 40, cy - 11, pw - 80, 24, 12); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 12px sans-serif';
+  ctx.fillText('Clear', px + pw / 2, cy);
+
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
 }
 
 function hitTestUpload(tx, ty, paneling) {
   if (paneling !== 'upscore') return null;
-  var pw = 220, ph = 220, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
+  var pw = 220, ph = 248, px = (C.W - pw) / 2, py = (C.H - ph) / 2;
   if (tx < px || tx > px + pw || ty < py || ty > py + ph) return { action: 'closeUpload' };
 
   var rowBase = py + 32;
@@ -1353,6 +1360,9 @@ function hitTestUpload(tx, ty, paneling) {
   // Upload (row 3)
   var r3cy = rowBase + 152;
   if (ty >= r3cy - 14 && ty <= r3cy + 14 && tx >= px + 40 && tx <= px + pw - 40) return { action: 'upDoUpload' };
+  // Clear (row 4)
+  var r4cy = rowBase + 186;
+  if (ty >= r4cy - 12 && ty <= r4cy + 12 && tx >= px + 40 && tx <= px + pw - 40) return { action: 'upDoClear' };
 
   return null;
 }
@@ -1521,6 +1531,62 @@ function drawRope(ctx, birdA, birdB, t) {
   ctx.fill();
 }
 
+function drawRescuePrompt(ctx, side, t, fade) {
+  // 半屏脉冲高亮 + 淡入淡出过渡，颜色跟随主题
+  var isLeft = side === 'A';
+  var hx = isLeft ? 0 : C.TOUCH_SPLIT_X;
+  var hw = isLeft ? C.TOUCH_SPLIT_X : C.W - C.TOUCH_SPLIT_X;
+  var hy = C.GAME_TOP;
+  var hh = C.GAME_H;
+
+  // hex → rgb
+  var hex = t.accent || '#FFB3B3';
+  var rr = parseInt(hex.slice(1,3), 16);
+  var gg = parseInt(hex.slice(3,5), 16);
+  var bb = parseInt(hex.slice(5,7), 16);
+
+  // 脉冲（呼吸）+ 全局淡入淡出
+  var pulse = (0.08 + 0.05 * Math.sin(Date.now() * 0.006)) * fade;
+
+  ctx.save();
+
+  // 半屏半透明底色
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = 'rgb(' + rr + ',' + gg + ',' + bb + ')';
+  ctx.fillRect(hx, hy, hw, hh);
+
+  // 内侧发光边
+  var gradX0 = isLeft ? C.TOUCH_SPLIT_X : C.TOUCH_SPLIT_X;
+  var gradX1 = isLeft ? C.TOUCH_SPLIT_X - 40 : C.TOUCH_SPLIT_X + 40;
+  var grad = ctx.createLinearGradient(gradX0, 0, gradX1, 0);
+  grad.addColorStop(0, 'rgba(' + rr + ',' + gg + ',' + bb + ',' + (0.25 * fade) + ')');
+  grad.addColorStop(1, 'rgba(' + rr + ',' + gg + ',' + bb + ',0)');
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = grad;
+  ctx.fillRect(Math.min(gradX0, gradX1), hy, 40, hh);
+
+  // 大号提示文字
+  var txtX = isLeft ? C.TOUCH_SPLIT_X / 2 : C.TOUCH_SPLIT_X + (C.W - C.TOUCH_SPLIT_X) / 2;
+  var txtY = C.GAME_TOP + C.GAME_H * 0.45;
+  var txtPulse = (0.75 + 0.25 * Math.sin(Date.now() * 0.008)) * fade;
+  ctx.globalAlpha = txtPulse;
+  ctx.font = 'bold 22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#FFFFFF';
+  var dHex = t.accentDark || '#FF9F8F';
+  var dr = parseInt(dHex.slice(1,3), 16);
+  var dg = parseInt(dHex.slice(3,5), 16);
+  var db = parseInt(dHex.slice(5,7), 16);
+  ctx.strokeStyle = 'rgba(' + dr + ',' + dg + ',' + db + ',' + (0.5 * fade) + ')';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeText('跳起营救', txtX, txtY);
+  ctx.fillText('跳起营救', txtX, txtY);
+
+  ctx.restore();
+}
+
 module.exports = {
   drawBackButton: drawBackButton,
   drawSky: drawSky,
@@ -1528,6 +1594,7 @@ module.exports = {
   drawScorePanel: drawScorePanel,
   drawChargeBar: drawChargeBar,
   drawRope: drawRope,
+  drawRescuePrompt: drawRescuePrompt,
   drawStartScreen: drawStartScreen,
   drawThemePanel: drawThemePanel,
   drawAccessoryPanel: drawAccessoryPanel,

@@ -319,6 +319,24 @@ function playCombo(level) {
   }
 }
 
+// ---- 营救紧急提示音：三连急促上行 ----
+function playRescueUrge() {
+  var ctx = ensureCtx();
+  if (!ctx) return;
+  var now = ctx.currentTime;
+  var freqs = [880, 1100, 1400];
+  for (var i = 0; i < 3; i++) {
+    var o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = freqs[i];
+    var t = now + i * 0.1;
+    g.gain.setValueAtTime(0.15, t);
+    g.gain.exponentialRampToValueAtTime(0.01, t + 0.07);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(t); o.stop(t + 0.08);
+  }
+}
+
 // ---- 销毁 ----
 function destroy() {
   _chargeOsc = null; _chargeGain = null;
@@ -347,5 +365,6 @@ module.exports = {
   resetInvincibleBeep: resetInvincibleBeep,
   playChargeFull: playChargeFull,
   playCombo: playCombo,
+  playRescueUrge: playRescueUrge,
   destroy: destroy
 };

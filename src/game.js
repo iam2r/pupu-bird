@@ -62,6 +62,7 @@ var birdA = null, birdB = null;
 var _activeTouchMap = {};     // { touchId: 'A'|'B' }
 var _activeCountA = 0, _activeCountB = 0;
 var _splitLineTimer = 0;      // 双人开场分屏线倒计时
+var _rescueFade = 0;           // 营救提示淡入淡出
 // ---- 道具系统 ----
 var items = [];              // 漂浮盲盒 [{x,y,collected,type,opened,phase}]
 var activeItem = null;       // 当前激活道具（单人/双人鸟A） {type, timer}
@@ -106,6 +107,10 @@ function _hitBird(bird, other) {
   if (bird.isCharging) {
     if (bird === birdA) Sound.stopCharge(0); else Sound.stopCharge2(0);
     bird.isCharging = false; bird.chargeRatio = 0;
+  }
+  // 搭档还活着 → 播放营救紧急提示音
+  if (other && other.alive && !other.stunned) {
+    Sound.playRescueUrge();
   }
   // 两只都晕 → 全死
   if (birdA.stunned && birdB.stunned) {
@@ -195,7 +200,7 @@ function uploadToCloud(mode) {
         try { wx.getOpenDataContext().postMessage({ type: 'refresh', mode: leaderboardMode, accent: tU.accent, accentDark: tU.accentDark }); } catch(e) {}
       }
     },
-    fail: function(err) {}
+    fail: function(err) { console.error('[Leaderboard] setUserCloudStorage FAIL:', JSON.stringify(err)); }
   });
 }
 
@@ -282,6 +287,7 @@ function startGame() {
     birdB = _createBirdState(C.BIRD_X_B);
     _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
     _splitLineTimer = 2.0;
+    _rescueFade = 0;
   }
   gameJustStarted = true;
   state = C.STATE.PLAYING;
@@ -386,6 +392,7 @@ function restartGame() {
     birdB = _createBirdState(C.BIRD_X_B);
     _activeTouchMap = {}; _activeCountA = 0; _activeCountB = 0;
     _splitLineTimer = 2.0;
+    _rescueFade = 0;
   }
   gameJustStarted = true;
   state = C.STATE.PLAYING;
@@ -616,6 +623,11 @@ function update(dt) {
     if (_splitLineTimer > 0) _splitLineTimer = Math.max(0, _splitLineTimer - s);
     if (birdA && birdA.wakeFlash > 0) birdA.wakeFlash = Math.max(0, birdA.wakeFlash - s);
     if (birdB && birdB.wakeFlash > 0) birdB.wakeFlash = Math.max(0, birdB.wakeFlash - s);
+    // 营救提示淡入淡出
+    var needRescue = (birdA && birdA.alive && birdA.stunned && birdB && birdB.alive && !birdB.stunned)
+                  || (birdB && birdB.alive && birdB.stunned && birdA && birdA.alive && !birdA.stunned);
+    var fadeSpeed = needRescue ? 6.0 : 3.0; // 淡入快，淡出慢
+    _rescueFade += (needRescue ? 1 : 0 - _rescueFade) * Math.min(1, fadeSpeed * s);
     var t2 = C.getT(currentTheme);
     // 更新活鸟物理 + 蓄力（眩晕鸟不能蓄力，蓄力释放后恢复）
     if (birdA.alive) {
@@ -1142,6 +1154,11 @@ function draw(ctx) {
         ctx.fillText('B', C.TOUCH_SPLIT_X + 24, labelY);
         ctx.restore();
       }
+      // 营救提示：半屏脉冲 + 淡入淡出
+      if (_rescueFade > 0.01) {
+        var rescueSide = (birdA && birdA.stunned) ? 'B' : 'A';
+        UI.drawRescuePrompt(ctx, rescueSide, t, _rescueFade);
+      }
       if (scoreFlyTexts.length > 0) Particles.drawScoreFlies(ctx, scoreFlyTexts);
     if (petals.length > 0) Particles.drawPetals(ctx, petals);
       UI.drawScorePanel(ctx, score, t);
@@ -1485,6 +1502,23 @@ function onTouch(e) {
         Storage.saveData(buildSaveData());
         uploadToCloud(d5.mode);
         wx.showToast({ title: '已上报 mode=' + d5.mode + ' comp=' + comp, icon: 'none' });
+        paneling = null;
+        return;
+      }
+      if (upAct.action === 'upDoClear') {
+        var dc = UI.getUploadData();
+        var key = dc.mode === 1 ? 'bestScore2P' : 'bestScore';
+        if (dc.mode === 1) { rankingBest2P = 0; } else { rankingBest = 0; }
+        Storage.saveData(buildSaveData());
+        // 上报0分覆盖云存储
+        var now = Math.floor(Date.now() / 1000);
+        var scoreVal = 0;
+        console.log('[UpClear] key:', key, 'mode:', dc.mode);
+        wx.setUserCloudStorage({
+          KVDataList: [{ key: key, value: JSON.stringify({ wxgame: { score: 0, update_time: now } }) }],
+          success: function() { wx.showToast({ title: '已清除 ' + key, icon: 'none' }); },
+          fail: function(err) { console.error('[UpClear] FAIL:', JSON.stringify(err)); wx.showToast({ title: '清除失败', icon: 'none' }); }
+        });
         paneling = null;
         return;
       }
