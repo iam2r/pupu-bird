@@ -26,6 +26,7 @@ function _activeData() { return lbMode === 1 ? dataDuo : dataSolo; }
 // 头像图片缓存 { openId: Image }
 var avatarCache = {};
 var avatarLoaded = {};
+var myAvatarUrl = ''; // 自己的头像（由主域 postMessage 传入）
 
 // ==================== 消息处理 ====================
 
@@ -37,6 +38,7 @@ wx.onMessage(function(msg) {
     lbMode = msg.mode || 0;
     accentColor = msg.accent || '#FFB3B3';
     accentDarkColor = msg.accentDark || '#FF9F8F';
+    if (msg.userAvatarUrl) myAvatarUrl = msg.userAvatarUrl;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     visible = true;
     scrollOffset = 0;
@@ -63,6 +65,8 @@ wx.onMessage(function(msg) {
     fetchOne(lbMode === 1 ? 'bestScore2P' : 'bestScore', cur, function() { render(); });
   } else if (msg.type === 'touch' && visible) {
     handleTouch(msg);
+  } else if (msg.type === 'UPDATE_SCORE') {
+    handleScoreUpdate(msg.score, msg.mode);
   }
 });
 
@@ -158,7 +162,14 @@ function processData(rawFriends, my, key, dataset) {
       } catch(e) {}
     }
     if (bestScore > 0) {
-      var isMe = my && bestScore === my.bestScore;
+      // 先按头像匹配（去掉微信URL末尾的尺寸后缀如 /132、/0）
+      var isMe = false;
+      if (myAvatarUrl && f.avatarUrl) {
+        var stripSize = function(u) { return u.replace(/\/\d+$/, ''); };
+        isMe = stripSize(f.avatarUrl) === stripSize(myAvatarUrl);
+      }
+      // 头像匹配不上时用分数兜底
+      if (!isMe) isMe = my && bestScore === my.bestScore;
       if (isMe) selfInFriends = true;
       dataset.friends.push({
         cacheKey: f.openId || f.avatarUrl || 'unknown',
@@ -168,6 +179,17 @@ function processData(rawFriends, my, key, dataset) {
         isMe: isMe
       });
     }
+  }
+
+  // 自己那行：好友列表里没匹配到（如零好友 / 没人玩过该模式），但自己有分 → 合成一条保证显示
+  if (my && my.bestScore > 0 && !selfInFriends) {
+    dataset.friends.push({
+      cacheKey: 'me',
+      nickname: '我',
+      avatarUrl: myAvatarUrl || '',
+      bestScore: my.bestScore,
+      isMe: true
+    });
   }
 
   // 排序
@@ -180,6 +202,41 @@ function processData(rawFriends, my, key, dataset) {
   dataset.showSelfBelow = dataset.selfRank > 10;
 
   preloadAvatars(dataset);
+}
+
+// ==================== 分数写入（主域委托 ODC 做云端对比） ====================
+
+function handleScoreUpdate(newScore, mode) {
+  var key = mode === 1 ? 'bestScore2P' : 'bestScore';
+  wx.getUserCloudStorage({
+    keyList: [key],
+    success: function(res) {
+      try {
+        var kv = res.KVDataList || [];
+        var oldScore = 0;
+        for (var i = 0; i < kv.length; i++) {
+          if (kv[i].key === key) {
+            var v = JSON.parse(kv[i].value);
+            oldScore = v.wxgame ? v.wxgame.score : 0;
+            break;
+          }
+        }
+        if (newScore > oldScore) {
+          var now = Math.floor(Date.now() / 1000);
+          wx.setUserCloudStorage({
+            KVDataList: [{ key: key, value: JSON.stringify({ wxgame: { score: newScore, update_time: now } }) }],
+            success: function() {
+              if (visible) {
+                var ds = key === 'bestScore2P' ? dataDuo : dataSolo;
+                ds.loaded = false; ds.friends = [];
+                fetchOne(key, ds, function() { render(); });
+              }
+            }
+          });
+        }
+      } catch(e) {}
+    }
+  });
 }
 
 // ==================== 头像加载 ====================
@@ -311,7 +368,14 @@ function render() {
     ctx.fillStyle = '#AAAAAA';
     ctx.font = '14px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(d.loaded ? '暂无数据' : '加载中…', W / 2, py + ph / 2);
+    if (!d.loaded) {
+      ctx.fillText('加载中…', W / 2, py + ph / 2);
+    } else {
+      // 诊断：显示本地读取到的「我」的分，用来判断是 上报失败 还是 读取失败
+      var myRaw = (d.myData && d.myData.bestScore) ? d.myData.bestScore : 0;
+      ctx.fillText('我的' + (lbMode === 1 ? '双人' : '单人') + '分: ' + (myRaw / 100).toFixed(2), W / 2, py + ph / 2 - 12);
+      ctx.fillText('(好友榜暂无其他人 key=' + (lbMode === 1 ? 'bestScore2P' : 'bestScore') + ')', W / 2, py + ph / 2 + 12);
+    }
     return;
   }
 

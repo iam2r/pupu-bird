@@ -174,7 +174,19 @@ function drawStartScreen(ctx, t, stateData) {
   ctx.lineWidth = hasAvatar ? 2 : 1.5;
   ctx.beginPath(); ctx.arc(C.W / 2, avatarBtnY, avatarBtnR, 0, Math.PI * 2); ctx.stroke();
   if (!hasAvatar) {
-    var badgeR = 6, badgeCX = C.W / 2 + 11, badgeCY = avatarBtnY - 11;
+    // 小人剪影
+    var cx = C.W / 2, cy = avatarBtnY;
+    ctx.fillStyle = t.textSec;
+    ctx.globalAlpha = 0.35;
+    ctx.beginPath();
+    ctx.arc(cx, cy - 5, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 7, 8, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    // 右上角 + 号
+    var badgeR = 6, badgeCX = cx + 11, badgeCY = cy - 11;
     ctx.fillStyle = t.surfaceBg;
     ctx.beginPath(); ctx.arc(badgeCX, badgeCY, badgeR, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = t.accent; ctx.lineWidth = 1;

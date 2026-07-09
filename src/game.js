@@ -39,8 +39,6 @@ var paneling = null;
 var panelJustOpened = false;
 var showingLeaderboard = false;
 var leaderboardJustOpened = false;
-var rankingBest = 0;    // 排行榜：单人最高复合分
-var rankingBest2P = 0;  // 排行榜：双人最高复合分
 var leaderboardMode = 0; // 0=单人榜 1=双人榜
 
 // ---- 花瓣粒子 ----
@@ -140,14 +138,14 @@ function _finalizeDualDeath() {
   var earned = 0;
   if (score >= 2) { earned = 1 + Math.floor((score - 2) / 5); if (combo >= 7) earned += 3; else if (combo >= 5) earned += 2; }
   earned = Math.min(earned, 20);
-  if (earned > 0) { points += earned; Storage.savePoints(points); wx.showToast({ title: '+' + earned + ' 💎', icon: 'none', duration: 1200 }); }
+  if (earned > 0) { points += earned; Storage.savePoints(points); showToastSafe('+' + earned + ' 💎', 'none', 1200); }
   if (combo >= 5) score += Math.floor(combo / 2);
   Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
   Memorial.prepareShareImage();
   if (score > 0) {
     var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
-    console.log('[Upload2P] score:', score, 'pipes:', pipesPassed, 'composite:', composite, 'rankingBest2P:', rankingBest2P, 'upload:', composite > rankingBest2P);
-    if (composite > rankingBest2P) { rankingBest2P = composite; Storage.saveData(buildSaveData()); uploadToCloud(1); }
+    // 云端对比和写入委托 ODC 处理（ODC 有读写云端的完整能力）
+    try { wx.getOpenDataContext().postMessage({ type: 'UPDATE_SCORE', score: composite, mode: 1 }); } catch(e) {}
   }
 }
 
@@ -169,16 +167,24 @@ function buildSaveData() {
     currentAccessory: currentAccessory,
     unlockedThemes: unlockedThemes,
     unlockedAccessories: unlockedAccessories,
-    avatarEnabled: avatarEnabled,
-    rankingBest: rankingBest,
-    rankingBest2P: rankingBest2P
+    avatarEnabled: avatarEnabled
   };
 }
 
-function uploadToCloud(mode) {
+// 防吞 toast：先 hide 再延迟 60ms 显示，避免被前一个 toast 吞掉
+function showToastSafe(msg, icon, dur) {
+  try { wx.hideToast(); } catch(e) {}
+  setTimeout(function() {
+    try { wx.showToast({ title: msg, icon: icon || 'none', duration: dur || 2000 }); } catch(e) {}
+  }, 60);
+}
+
+var _uploadSettled = false;
+
+function uploadToCloud(mode, score) {
   mode = mode || 0;
+  score = score || 0;
   var now = Math.floor(Date.now() / 1000);
-  var score = mode === 1 ? rankingBest2P : rankingBest;
   var key = mode === 1 ? 'bestScore2P' : 'bestScore';
   console.log('[Leaderboard] 上传 mode=' + mode + ' score=' + score);
 
@@ -190,18 +196,47 @@ function uploadToCloud(mode) {
   }
 
   // 2. 关系链KV
-  wx.setUserCloudStorage({
-    KVDataList: [
-      { key: key, value: JSON.stringify({ wxgame: { score: score, update_time: now } }) }
-    ],
-    success: function() {
-      if (showingLeaderboard) {
-        var tU = C.getT(currentTheme);
-        try { wx.getOpenDataContext().postMessage({ type: 'refresh', mode: leaderboardMode, accent: tU.accent, accentDark: tU.accentDark }); } catch(e) {}
+  if (typeof wx.setUserCloudStorage !== 'function') {
+    console.error('[Leaderboard] setUserCloudStorage 不存在');
+    showToastSafe('❌无云存储API', 'none', 3000);
+    return;
+  }
+  _uploadSettled = false;
+  showToastSafe('↪上报调用 ' + key, 'none', 1500);
+  try {
+    wx.setUserCloudStorage({
+      KVDataList: [
+        { key: key, value: JSON.stringify({ wxgame: { score: score, update_time: now } }) }
+      ],
+      success: function() {
+        _uploadSettled = true;
+        console.log('[Leaderboard] setUserCloudStorage OK key=' + key);
+        showToastSafe('✅上报成功 ' + key + '=' + score, 'success', 2500);
+        if (showingLeaderboard) {
+          var tU = C.getT(currentTheme);
+          try { wx.getOpenDataContext().postMessage({ type: 'refresh', mode: leaderboardMode, accent: tU.accent, accentDark: tU.accentDark }); } catch(e) {}
+        }
+      },
+      fail: function(err) {
+        _uploadSettled = true;
+        console.error('[Leaderboard] setUserCloudStorage FAIL:', JSON.stringify(err));
+        var em = err && err.errMsg ? err.errMsg : JSON.stringify(err);
+        showToastSafe('❌上报失败 ' + key + ' ' + em, 'none', 3500);
+      },
+      complete: function(res) {
+        _uploadSettled = true;
+        console.log('[Leaderboard] setUserCloudStorage complete key=' + key + ' res=' + JSON.stringify(res));
       }
-    },
-    fail: function(err) { console.error('[Leaderboard] setUserCloudStorage FAIL:', JSON.stringify(err)); }
-  });
+    });
+  } catch (e) {
+    _uploadSettled = true;
+    console.error('[Leaderboard] setUserCloudStorage THROW:', e && e.message);
+    showToastSafe('❌上报异常 ' + (e && e.message ? e.message : e), 'none', 3500);
+  }
+  // 看门狗：3 秒内回调没回来 → 判定 API 无响应
+  setTimeout(function() {
+    if (!_uploadSettled) showToastSafe('⚠上报无回调 ' + key, 'none', 3000);
+  }, 3000);
 }
 
 function showLeaderboardOverlay() {
@@ -217,6 +252,7 @@ function showLeaderboardOverlay() {
       mode: leaderboardMode,
       accent: t.accent,
       accentDark: t.accentDark,
+      userAvatarUrl: userAvatarUrl || '',
       W: si.windowWidth,
       H: si.windowHeight,
       dpr: si.pixelRatio || 1
@@ -258,6 +294,8 @@ function gotoMenu() {
   items = []; activeItem = null; activeItemB = null;
   memorialMsg = C.MEMORIAL_MSGS[Math.floor(Math.random() * C.MEMORIAL_MSGS.length)];
   state = C.STATE.MENU;
+  // 未授权时提前创建原生按钮，点击即授权（一步到位）
+  if (!userAvatarUrl) showUserInfoButton();
 }
 
 function startGame() {
@@ -351,17 +389,10 @@ function die() {
   Memorial.renderMemorialCard(score, pipesPassed, currentTheme, currentAccessory, memorialMsg, Bird.drawAccessoryOnCtx);
   Memorial.prepareShareImage();
 
-  // 计算排行榜复合分 & 上传云存储
+  // 委托 ODC 处理云端对比和写入
   if (score > 0) {
-    // 复合分 = score*100 + floor(score/pipesPassed)
-    // 前段是主排序（1分=100），末2位是效率tiebreaker（管道均分）
     var composite = score * 100 + Math.floor(score / Math.max(pipesPassed, 1));
-    console.log('[Upload] score:', score, 'pipes:', pipesPassed, 'composite:', composite, 'rankingBest:', rankingBest, 'upload:', composite > rankingBest);
-    if (composite > rankingBest) {
-      rankingBest = composite;
-      Storage.saveData(buildSaveData());
-      uploadToCloud();
-    }
+    try { wx.getOpenDataContext().postMessage({ type: 'UPDATE_SCORE', score: composite, mode: 0 }); } catch(e) {}
   }
 }
 
@@ -465,17 +496,14 @@ function showUserInfoButton() {
   });
 
   _userInfoButton.onTap(function(res) {
-    _userInfoButton.destroy();
-    _userInfoButton = null;
     if (res.userInfo) {
+      _userInfoButton.destroy();
+      _userInfoButton = null;
       setUserAvatar(res.userInfo.avatarUrl);
-      wx.showToast({ title: '头像纹理已开启', icon: 'none', duration: 1500 });
-    } else {
-      wx.showToast({ title: '需要授权才能使用头像', icon: 'none' });
+      wx.showToast({ title: '头像已开启', icon: 'none', duration: 1500 });
     }
+    // 拒绝不销毁，保留按钮可重试
   });
-
-  wx.showToast({ title: '点击中间按钮授权', icon: 'none', duration: 2000 });
 }
 
 function destroyUserInfoButton() {
@@ -484,27 +512,8 @@ function destroyUserInfoButton() {
 
 function toggleAvatar() {
   if (userAvatarUrl) return; // 已登录，无需重复
-  // 未授权：先检查
-  wx.getSetting({
-    success: function(s) {
-      if (s.authSetting['scope.userInfo']) {
-        // 已授权：静默获取
-        wx.getUserInfo({
-          success: function(u) {
-            setUserAvatar(u.userInfo.avatarUrl);
-            wx.showToast({ title: '头像纹理已开启', icon: 'none', duration: 1500 });
-          },
-          fail: function() {
-            // getUserInfo 失败，用原生按钮
-            showUserInfoButton();
-          }
-        });
-      } else {
-        // 未授权：弹出原生授权按钮
-        showUserInfoButton();
-      }
-    }
-  });
+  // 原生按钮已在 gotoMenu 时创建，这里仅兜底
+  if (!_userInfoButton) showUserInfoButton();
 }
 
 // ==================== 对外 API ====================
@@ -524,9 +533,6 @@ function init(canvas, ctx, params) {
   unlockedAccessories = data.unlockedAccessories || { none: true };
   points = data.points;
   avatarEnabled = data.avatarEnabled || false;
-  rankingBest = data.rankingBest || 0;
-  rankingBest2P = data.rankingBest2P || 0;
-  console.log('[Init] rankingBest:', rankingBest, 'rankingBest2P:', rankingBest2P, 'best:', best);
 
   // 官方排行榜
   try { rankManager = wx.getRankManager(); } catch(e) { rankManager = null; }
@@ -1498,9 +1504,7 @@ function onTouch(e) {
         var d5 = UI.getUploadData();
         var comp = d5.score * 100 + Math.floor(d5.score / Math.max(d5.pipes, 1));
         console.log('[UpScore] score:', d5.score, 'pipes:', d5.pipes, 'mode:', d5.mode, 'composite:', comp);
-        if (d5.mode === 1) { rankingBest2P = comp; } else { rankingBest = comp; }
-        Storage.saveData(buildSaveData());
-        uploadToCloud(d5.mode);
+        uploadToCloud(d5.mode, comp);
         wx.showToast({ title: '已上报 mode=' + d5.mode + ' comp=' + comp, icon: 'none' });
         paneling = null;
         return;
@@ -1508,11 +1512,7 @@ function onTouch(e) {
       if (upAct.action === 'upDoClear') {
         var dc = UI.getUploadData();
         var key = dc.mode === 1 ? 'bestScore2P' : 'bestScore';
-        if (dc.mode === 1) { rankingBest2P = 0; } else { rankingBest = 0; }
-        Storage.saveData(buildSaveData());
-        // 上报0分覆盖云存储
         var now = Math.floor(Date.now() / 1000);
-        var scoreVal = 0;
         console.log('[UpClear] key:', key, 'mode:', dc.mode);
         wx.setUserCloudStorage({
           KVDataList: [{ key: key, value: JSON.stringify({ wxgame: { score: 0, update_time: now } }) }],
@@ -1538,11 +1538,26 @@ function onTouch(e) {
       if (dbg.action === 'add5') { points += 5; Storage.savePoints(points); return; }
       if (dbg.action === 'add50') { points += 50; Storage.savePoints(points); return; }
       if (dbg.action === 'clear') {
-        wx.clearStorageSync();
-        var data = Storage.loadData();
-        best = data.best; currentTheme = data.currentTheme; currentAccessory = data.currentAccessory;
-        unlockedThemes = data.unlockedThemes; unlockedAccessories = data.unlockedAccessories;
-        points = data.points;
+        console.log('[Clear] 开始清除云端数据');
+        var now = Math.floor(Date.now() / 1000);
+        var zero = JSON.stringify({ wxgame: { score: 0, update_time: now } });
+        wx.setUserCloudStorage({
+          KVDataList: [
+            { key: 'bestScore', value: zero },
+            { key: 'bestScore2P', value: zero }
+          ],
+          success: function() {
+            wx.showToast({ title: '✅ 已清除云端排行榜', icon: 'none' });
+            console.log('[Clear] 云端清除成功');
+            if (showingLeaderboard) {
+              try { wx.getOpenDataContext().postMessage({ type: 'refresh', mode: leaderboardMode }); } catch(e) {}
+            }
+          },
+          fail: function(err) {
+            wx.showToast({ title: '⚠ 云端清除失败', icon: 'none' });
+            console.log('[Clear] 云端清除失败:', JSON.stringify(err));
+          }
+        });
         return;
       }
       if (dbg.action === 'unlockAll') {
@@ -1554,7 +1569,7 @@ function onTouch(e) {
       }
       if (dbg.action === 'upScore') {
         paneling = 'upscore'; panelJustOpened = true;
-        UI.initUploadPanel(370, 85, 0);
+        UI.initUploadPanel(517, 100, 0);
         return;
       }
       if (dbg.action === 'openParams') {
